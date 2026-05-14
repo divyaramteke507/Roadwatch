@@ -673,6 +673,9 @@
       } else if(err.code === 'auth/invalid-phone-number') {
         statusText.innerText='Invalid phone number format. Use 10 digit Indian number.';
         btn.disabled=false;
+      } else if(err.code === 'auth/billing-not-enabled') {
+        statusText.innerHTML='Firebase Billing Error: SMS requires the Blaze plan.<br><b>Free Fix:</b> Go to Firebase Console → Authentication → Sign-in method → Phone → Add your number to "Phone numbers for testing" with code 123456 to bypass SMS.';
+        btn.disabled=false;
       } else {
         statusText.innerText='SMS delivery failed (Error: ' + (err.code||err.message||'unknown') + '). Please check your phone number and try again.';
         btn.disabled=false;
