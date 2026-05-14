@@ -181,6 +181,20 @@
   }
   .btn-dashboard:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(0,0,128,0.4); }
 
+  .citizen-photo-container {
+    width: 130px; height: 130px; border-radius: 50%; margin: 0 auto 20px;
+    border: 4px solid var(--gold); box-shadow: 0 0 30px rgba(201,146,42,0.4), 0 8px 24px rgba(0,0,0,0.2);
+    overflow: hidden; animation: fadeIn 1s 0.5s ease both; position: relative;
+  }
+  .citizen-photo-container img {
+    width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+  }
+  .citizen-photo-container .no-photo {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,128,0.1); font-family: 'Cinzel', serif; font-size: 11px;
+    color: var(--navy); letter-spacing: 0.1em;
+  }
+
   .motto {
     margin-top: 25px; font-family: 'Noto Serif Devanagari', serif;
     font-size: 16px; color: rgba(0,0,100,0.6); animation: fadeIn 1s 1.7s ease both;
@@ -230,6 +244,11 @@
   <main class="success-layout">
     <div class="success-card">
       <div class="success-glow"></div>
+
+      <div class="citizen-photo-container">
+        <img id="citizen-photo" src="" alt="Citizen Photo" style="display:none;">
+        <div class="no-photo" id="no-photo">NO PHOTO</div>
+      </div>
 
       <div class="checkmark-container">
         <div class="checkmark-ring">
@@ -300,6 +319,11 @@
   const pc = document.getElementById('particles');
   for(let i=0;i<15;i++){let p=document.createElement('div');p.className='particle';p.style.left=Math.random()*100+'vw';p.style.animationDuration=(Math.random()*10+10)+'s';p.style.animationDelay=(Math.random()*5)+'s';pc.appendChild(p);}
 
+  // ─── ROUTE GUARD: Must come from face verification ───
+  if(!sessionStorage.getItem('authResult')){
+    window.location.href='login.html';
+  }
+
   // Load session data
   try {
     const data = JSON.parse(sessionStorage.getItem('authResult') || '{}');
@@ -310,6 +334,16 @@
   } catch(e) {
     document.getElementById('verify-time').textContent = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
   }
+
+  // Load citizen photo
+  try {
+    const photo = sessionStorage.getItem('citizenPhoto');
+    if(photo) {
+      document.getElementById('citizen-photo').src = photo;
+      document.getElementById('citizen-photo').style.display = 'block';
+      document.getElementById('no-photo').style.display = 'none';
+    }
+  } catch(e) {}
 </script>
 </body>
 </html>

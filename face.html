@@ -731,6 +731,11 @@
 
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script>
+  // ─── ROUTE GUARD: Must come from login page ───
+  if(!sessionStorage.getItem('loginVerified')){
+    window.location.href='login.html';
+  }
+
   const API_BASE = window.location.origin;
   const MODEL_URLS = [
     'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights',
@@ -981,6 +986,19 @@
     btn.innerText='Access Granted ✓';
     btn.style.background='linear-gradient(135deg, var(--green) 0%, #0a5200 100%)';
     btn.style.borderColor='var(--green)';
+
+    // Capture photo from webcam
+    let photoData = '';
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 240;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      photoData = canvas.toDataURL('image/jpeg', 0.8);
+      sessionStorage.setItem('citizenPhoto', photoData);
+    } catch(e){ console.log('Photo capture failed:', e); }
+
     const result={firstName:data.user?.firstName||'',lastName:data.user?.lastName||'',phone:data.user?.phone||'',loginTime:data.loginTime||new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})};
     sessionStorage.setItem('authResult',JSON.stringify(result));
     try{fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sms_alert',phone:result.phone,loginTime:result.loginTime,location:'India'})});}catch(e){}

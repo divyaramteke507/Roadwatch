@@ -775,6 +775,7 @@
       await fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',firstName:fName.value.trim(),lastName:lName.value.trim(),phoneNumber:phoneVal})});
     } catch(err){console.log('Backend not available, continuing offline');}
     sessionStorage.setItem('citizenData',JSON.stringify({firstName:fName.value.trim(),lastName:lName.value.trim(),phone:phoneVal}));
+    sessionStorage.setItem('loginVerified','true');
     window.location.href='face.html';
   });
 </script>
