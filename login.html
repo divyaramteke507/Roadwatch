@@ -667,9 +667,9 @@
       console.error('Firebase OTP error:', err);
       statusText.className='status-msg status-error';
       if(err.code === 'auth/too-many-requests') {
-        statusText.innerText='Too many attempts. Please wait 5 minutes and try again.';
-        // Auto re-enable after 5 min
-        setTimeout(()=>{ btn.disabled=false; btn.innerText='RETRY SEND OTP'; }, 300000);
+        statusText.innerHTML='Firebase rate limit reached. To fix:<br>1. Go to Firebase Console → Authentication → Sign-in method → Phone<br>2. Add your number under "Phone numbers for testing" with code 123456<br>3. Click Save, then try again here.';
+        btn.disabled=false;
+        btn.innerText='RETRY SEND OTP';
       } else if(err.code === 'auth/invalid-phone-number') {
         statusText.innerText='Invalid phone number format. Use 10 digit Indian number.';
         btn.disabled=false;
