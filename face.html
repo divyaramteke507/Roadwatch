@@ -344,8 +344,8 @@
 
   /* Webcam Feed Wrapper */
   .video-wrapper {
-    width: 220px;
-    height: 220px;
+    width: 280px;
+    height: 280px;
     border-radius: 50%;
     background: #0a0a1a;
     position: relative;
@@ -358,8 +358,7 @@
     height: 100%;
     object-fit: cover;
     transform: scaleX(-1); /* Mirror effect */
-    opacity: 0.8;
-    filter: contrast(1.1) saturate(1.2);
+    opacity: 0.9;
   }
 
   /* Face Guides */
@@ -858,7 +857,7 @@
     // Step 1: Detect face — REQUIRED, no fake bypass
     let detection=null;
     for(let attempt=0;attempt<30;attempt++){
-      detection=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.5})).withFaceLandmarks().withFaceDescriptor();
+      detection=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions({inputSize:160,scoreThreshold:0.2})).withFaceLandmarks().withFaceDescriptor();
       if(detection) break;
       statusSub.innerText='Searching... Attempt '+(attempt+1)+'/30 — Ensure your face is visible';
       await new Promise(r=>setTimeout(r,500));
@@ -882,12 +881,12 @@
     let blinkDetected=false;
     let prevEAR=0.3,blinkCount=0;
     for(let t=0;t<60;t++){
-      const d2=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+      const d2=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions({inputSize:160,scoreThreshold:0.2})).withFaceLandmarks();
       if(d2){
         const earL=getEAR(d2.landmarks,LEFT_EYE);
         const earR=getEAR(d2.landmarks,RIGHT_EYE);
         const ear=(earL+earR)/2;
-        if(prevEAR>0.22&&ear<0.19)blinkCount++;
+        if(prevEAR>0.21&&ear<0.18)blinkCount++;
         prevEAR=ear;
         if(blinkCount>=1){blinkDetected=true;break;}
       }
@@ -917,7 +916,7 @@
     // Step 4: Get final descriptor (re-detect to ensure face is still present)
     statusText.innerText='Generating Biometric Signature...';
     statusSub.innerText='Creating 128-dimension face descriptor';
-    const finalDetection=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+    const finalDetection=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions({inputSize:160,scoreThreshold:0.2})).withFaceLandmarks().withFaceDescriptor();
     if(!finalDetection){
       statusText.innerText='✗ Face Lost During Scan';
       statusText.style.color='#8B1A00';
