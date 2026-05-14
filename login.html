@@ -634,7 +634,7 @@
   }
   initCaptcha();
 
-  // ─── OTP Send (Firebase Phone Auth) ───
+  // ─── OTP Send (Firebase Phone Auth — NO FALLBACK) ───
   async function triggerOtp() {
     const phoneVal = phone.value.replace(/\D/g,'');
     const statusText = document.getElementById('otpStatusText');
@@ -645,53 +645,49 @@
     btn.disabled=true;statusText.innerText='';loader.style.display='block';
     const fullPhone = '+91' + phoneVal;
 
-    if (firebaseReady && recaptchaVerifier) {
-      // REAL Firebase OTP
-      try {
-        confirmationResult = await auth.signInWithPhoneNumber(fullPhone, recaptchaVerifier);
-        loader.style.display='none';
-        statusText.className='status-msg status-success';
-        statusText.innerText='✓ OTP Sent to ' + fullPhone + ' via Firebase';
-        document.getElementById('otpSection').style.display='flex';
-        otpBoxes[0].focus();
-        startResendTimer(btn);
-      } catch(err) {
-        loader.style.display='none';
-        console.error('Firebase OTP error:', err);
-        statusText.className='status-msg status-error';
-        if(err.code === 'auth/too-many-requests') {
-          statusText.innerText='Too many attempts. Please wait and try again.';
-        } else if(err.code === 'auth/invalid-phone-number') {
-          statusText.innerText='Invalid phone number format.';
-        } else {
-          statusText.innerText='SMS delivery failed. Using secure fallback.';
-          // Fallback to simulated mode
-          confirmationResult = null;
-          simulatedOtpSend(phoneVal, btn, statusText);
-        }
-        btn.disabled=false;
-        // Reset reCAPTCHA for retry
-        try { recaptchaVerifier.render(); } catch(e){}
-      }
-    } else {
-      // Fallback: simulated OTP
-      simulatedOtpSend(phoneVal, btn, statusText);
+    if (!firebaseReady || !recaptchaVerifier) {
+      loader.style.display='none';
+      statusText.className='status-msg status-error';
+      statusText.innerText='Firebase not initialized. Please refresh the page and try again.';
+      btn.disabled=false;
+      return;
     }
-  }
 
-  function simulatedOtpSend(phoneVal, btn, statusText) {
-    setTimeout(()=>{
-      document.getElementById('otpLoader').style.display='none';
+    try {
+      confirmationResult = await auth.signInWithPhoneNumber(fullPhone, recaptchaVerifier);
+      loader.style.display='none';
       statusText.className='status-msg status-success';
-      statusText.innerText='✓ Secure OTP Sent to +91 '+phoneVal;
+      statusText.innerText='✓ OTP Sent to ' + fullPhone;
       document.getElementById('otpSection').style.display='flex';
       otpBoxes[0].focus();
       startResendTimer(btn);
-    },1500);
+    } catch(err) {
+      loader.style.display='none';
+      confirmationResult = null;
+      console.error('Firebase OTP error:', err);
+      statusText.className='status-msg status-error';
+      if(err.code === 'auth/too-many-requests') {
+        statusText.innerText='Too many attempts. Please wait 5 minutes and try again.';
+        // Auto re-enable after 5 min
+        setTimeout(()=>{ btn.disabled=false; btn.innerText='RETRY SEND OTP'; }, 300000);
+      } else if(err.code === 'auth/invalid-phone-number') {
+        statusText.innerText='Invalid phone number format. Use 10 digit Indian number.';
+        btn.disabled=false;
+      } else {
+        statusText.innerText='SMS delivery failed (Error: ' + (err.code||err.message||'unknown') + '). Please check your phone number and try again.';
+        btn.disabled=false;
+      }
+      // Reset reCAPTCHA for retry
+      try {
+        recaptchaVerifier.clear();
+        recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible', callback: () => {} });
+        recaptchaVerifier.render();
+      } catch(e){ console.log('reCAPTCHA reset failed:', e); }
+    }
   }
 
   function startResendTimer(btn) {
-    let sec=30; btn.innerText='RESEND ('+sec+'s)';
+    let sec=60; btn.innerText='RESEND ('+sec+'s)';
     if(resendTimer)clearInterval(resendTimer);
     resendTimer=setInterval(()=>{
       sec--; btn.innerText='RESEND ('+sec+'s)';
@@ -716,33 +712,34 @@
     });
   });
 
-  // ─── OTP Verify (Firebase or fallback) ───
+  // ─── OTP Verify (Firebase ONLY — no fake fallback) ───
   async function checkOtpComplete() {
     let otpVal=Array.from(otpBoxes).map(b=>b.value).join('');
     const status=document.getElementById('otpVerifyStatus');
     if(otpVal.length===6){
-      if(confirmationResult) {
-        // REAL Firebase verification
-        status.innerText='Verifying OTP...';
-        status.className='status-msg';
-        try {
-          await confirmationResult.confirm(otpVal);
-          status.innerText='✓ OTP Verified via Firebase';
-          status.className='status-msg status-success';
-          isOtpVerified=true;
-          otpBoxes.forEach(b=>{b.style.borderColor='var(--green)';b.style.boxShadow='0 0 12px rgba(19,136,8,0.3)';b.disabled=true;});
-        } catch(err) {
-          status.innerText='✗ Invalid OTP Code';
-          status.className='status-msg status-error';
-          isOtpVerified=false;
-          otpBoxes.forEach(b=>{b.style.borderColor='#8B1A00';b.style.boxShadow='0 0 12px rgba(139,26,0,0.3)';});
-        }
-      } else {
-        // Fallback: accept any 6 digits
-        status.innerText='✓ Secure OTP Verified';
+      if(!confirmationResult) {
+        status.innerText='✗ OTP not sent yet. Click Send OTP first.';
+        status.className='status-msg status-error';
+        isOtpVerified=false;
+        validateForm();
+        return;
+      }
+      // REAL Firebase verification only
+      status.innerText='Verifying OTP with Firebase...';
+      status.className='status-msg';
+      otpBoxes.forEach(b=>{b.disabled=true;});
+      try {
+        await confirmationResult.confirm(otpVal);
+        status.innerText='✓ OTP Verified Successfully';
         status.className='status-msg status-success';
         isOtpVerified=true;
         otpBoxes.forEach(b=>{b.style.borderColor='var(--green)';b.style.boxShadow='0 0 12px rgba(19,136,8,0.3)';});
+      } catch(err) {
+        status.innerText='✗ Invalid OTP. Please check the code and try again.';
+        status.className='status-msg status-error';
+        isOtpVerified=false;
+        otpBoxes.forEach(b=>{b.style.borderColor='#8B1A00';b.style.boxShadow='0 0 12px rgba(139,26,0,0.3)';b.disabled=false;b.value='';});
+        otpBoxes[0].focus();
       }
     } else {
       status.innerText='';isOtpVerified=false;
