@@ -733,7 +733,11 @@
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script>
   const API_BASE = window.location.origin;
-  const MODEL_URL = 'https://cdn.jsdelivr.net/gh/nicehero/nicehero.github.io@master/face-api/models';
+  const MODEL_URLS = [
+    'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights',
+    'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model',
+    'https://cdn.jsdelivr.net/gh/nicehero/nicehero.github.io@master/face-api/models'
+  ];
 
   // Clock
   function updateTime(){const n=new Date();document.getElementById('live-time').innerText=n.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}).toUpperCase()+' IST';}
@@ -761,21 +765,36 @@
   btn.style.opacity='0.5';
   btn.innerText='LOADING...';
 
+  // Try loading models from multiple CDNs
+  async function loadModels(url) {
+    await faceapi.nets.tinyFaceDetector.loadFromUri(url);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(url);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(url);
+  }
+
   // Load models + camera
   async function init(){
     statusText.innerText='Loading AI Models...';
     statusSub.innerText='Downloading TinyFaceDetector, Landmarks, Recognition...';
-    try{
-      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-      modelsLoaded=true;
-      statusText.innerText='AI Models Loaded ✓';
-      statusSub.innerText='Requesting camera access...';
-    }catch(err){
+
+    let loaded = false;
+    for(let i=0; i<MODEL_URLS.length; i++){
+      try{
+        statusSub.innerText='Trying source '+(i+1)+'/'+MODEL_URLS.length+'...';
+        await loadModels(MODEL_URLS[i]);
+        loaded=true;
+        modelsLoaded=true;
+        statusText.innerText='AI Models Loaded ✓';
+        statusSub.innerText='Requesting camera access...';
+        break;
+      }catch(err){
+        console.log('Model source '+(i+1)+' failed:', MODEL_URLS[i], err);
+      }
+    }
+    if(!loaded){
       statusText.innerText='⚠ AI Model Load Failed';
       statusText.style.color='#8B1A00';
-      statusSub.innerText='Please refresh the page and ensure you have internet connection.';
+      statusSub.innerText='All model sources failed. Please check your internet and refresh.';
       btn.innerText='MODELS FAILED — REFRESH PAGE';
       return;
     }
