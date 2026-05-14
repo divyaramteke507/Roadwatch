@@ -884,15 +884,20 @@
 
     // Step 2: Liveness - blink detection
     let blinkDetected=false;
-    let prevEAR=0.3,blinkCount=0;
+    let maxEAR=0, blinkCount=0;
     for(let t=0;t<60;t++){
       const d2=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions({inputSize:160,scoreThreshold:0.2})).withFaceLandmarks();
       if(d2){
         const earL=getEAR(d2.landmarks,LEFT_EYE);
         const earR=getEAR(d2.landmarks,RIGHT_EYE);
         const ear=(earL+earR)/2;
-        if(prevEAR>0.21&&ear<0.18)blinkCount++;
-        prevEAR=ear;
+        
+        // Adaptive threshold: calibrate to person's open eyes
+        if (ear > maxEAR) maxEAR = ear;
+        
+        // If current EAR drops significantly below the max observed EAR, it's a blink
+        if(maxEAR > 0.18 && (maxEAR - ear) > 0.02) blinkCount++;
+        
         if(blinkCount>=1){blinkDetected=true;break;}
       }
       statusSub.innerText='Waiting for blink... ('+(12-Math.floor(t/5))+'s remaining)';
