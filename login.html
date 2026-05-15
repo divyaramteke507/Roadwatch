@@ -896,8 +896,29 @@
     const finalLName = clerkUser?.lastName || lName.value.trim() || '';
 
     try {
-      await fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',firstName:finalFName,lastName:finalLName,email:emailVal})});
-    } catch(err){console.log('Backend not available, continuing offline');}
+      const regRes = await fetch(API_BASE+'/api/user/register',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          firstName:finalFName,
+          lastName:finalLName,
+          email:emailVal,
+          phoneNumber: '0000000000'
+        })
+      });
+      const regData = await regRes.json();
+      if (regData.error === 'EMAIL_EXISTS') {
+        setAuthMode('login');
+        emailInp.value = emailVal;
+        submitBtn.classList.remove('active');
+        document.getElementById('otpStatusText').className='status-msg status-error';
+        document.getElementById('otpStatusText').innerText='Email already exists. Please login.';
+        submitBtn.innerHTML='Continue to Biometric Verification';
+        return;
+      }
+    } catch(err){
+      console.log('Backend not available, continuing offline');
+    }
     
     sessionStorage.setItem('citizenData',JSON.stringify({firstName:finalFName,lastName:finalLName,email:emailVal}));
     sessionStorage.setItem('loginVerified','true');

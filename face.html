@@ -941,7 +941,7 @@
     document.getElementById('dot-spoof').classList.replace('scanning','active');
     await new Promise(r=>setTimeout(r,1000));
 
-    // Step 4: Get final descriptor (re-detect to ensure face is still present)
+    // Step 4: Capture photo and get final descriptor
     statusText.innerText='Generating Biometric Signature...';
     statusSub.innerText='Creating 128-dimension face descriptor';
     const finalDetection=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions({inputSize:160,scoreThreshold:0.2})).withFaceLandmarks().withFaceDescriptor();
@@ -955,49 +955,61 @@
       return;
     }
     const descriptor=Array.from(finalDetection.descriptor);
-    const phoneNumber=citizenData.phone||'0000000000';
+    
+    // Capture photo
+    let photoData = '';
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 240;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      photoData = canvas.toDataURL('image/jpeg', 0.8);
+    } catch(e){ console.log('Photo capture failed:', e); }
+
+    const email=citizenData.email;
 
     // Step 5: Backend — check existing or register
     statusText.innerText='Querying National Database...';
     statusSub.innerText='Connecting to secure government servers';
     try{
-      const checkRes=await fetch(API_BASE+'/api/auth?phone='+phoneNumber);
+      const checkRes=await fetch(API_BASE+'/api/user/'+encodeURIComponent(email));
       const checkData=await checkRes.json();
 
       if(checkData.exists&&checkData.hasDescriptor){
         statusText.innerText='Comparing Biometric Signature...';
         statusSub.innerText='Matching against stored identity';
         await new Promise(r=>setTimeout(r,1000));
-        const verifyRes=await fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'face_verify',phoneNumber,descriptor})});
+        const verifyRes=await fetch(API_BASE+'/api/face/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,descriptor,faceImage:photoData})});
         const verifyData=await verifyRes.json();
         if(verifyData.success&&verifyData.verified){
           authSuccess(verifyData);
         }else{
-          statusText.innerText='✗ Biometric Mismatch — Access Denied';
+          statusText.innerText='✗ Face does not match — Access Denied';
           statusText.style.color='#8B1A00';
-          statusSub.innerText='Face does not match the registered identity for this phone number.';
+          statusSub.innerText=verifyData.message || 'Face does not match the registered identity for this email.';
           btn.disabled=false;btn.innerText='RETRY VERIFICATION';
           scanLine.classList.remove('animating');
         }
       }else{
         statusText.innerText='Registering Biometric Identity...';
-        statusSub.innerText='First-time registration for this phone number';
-        const regRes=await fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'face_register',phoneNumber,descriptor})});
+        statusSub.innerText='First-time registration for this email';
+        const regRes=await fetch(API_BASE+'/api/face/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,phoneNumber:citizenData.phone||'0000000000',descriptor,faceImage:photoData,firstName:citizenData.firstName,lastName:citizenData.lastName})});
         const regData=await regRes.json();
         if(regData.error==='DUPLICATE_FACE'){
-          statusText.innerText='✗ Duplicate Biometric Detected';
+          statusText.innerText='✗ Face already registered with another account';
           statusText.style.color='#8B1A00';
           statusSub.innerText=regData.message;
           btn.disabled=false;btn.innerText='RETRY VERIFICATION';
           scanLine.classList.remove('animating');
         }else if(regData.success){
-          authSuccess({user:{firstName:citizenData.firstName,lastName:citizenData.lastName,phone:phoneNumber},loginTime:new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})});
+          authSuccess({user:{firstName:citizenData.firstName,lastName:citizenData.lastName,email,phone:citizenData.phone||'0000000000'},loginTime:new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})});
         }
       }
     }catch(err){
       // Backend offline — still show success since face was GENUINELY detected
       console.log('Backend offline, face was genuinely verified locally');
-      authSuccess({user:{firstName:citizenData.firstName||'Citizen',lastName:citizenData.lastName||'',phone:phoneNumber},loginTime:new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})});
+      authSuccess({user:{firstName:citizenData.firstName||'Citizen',lastName:citizenData.lastName||'',email,phone:citizenData.phone||'0000000000'},loginTime:new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})});
     }
   }
 
