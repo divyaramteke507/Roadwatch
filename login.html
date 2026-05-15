@@ -573,46 +573,39 @@
     </div>
   </footer>
 
-  <!-- Invisible reCAPTCHA container for Firebase Phone Auth -->
-  <div id="recaptcha-container"></div>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<!-- Clerk JS SDK -->
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_test_bWF4aW11bS1vcG9zc3VtLTQzLmNsZXJrLmFjY291bnRzLmRldiQ"
+  src="https://cdn.clerk.com/public/clerk-js/5/clerk.browser.js"
+></script>
 
 <script>
   const API_BASE = window.location.origin;
 
-  // ─── Firebase Init ───
-  const firebaseConfig = {
-    apiKey: "AIzaSyBmM0VJ_1uNrUpzXDS3o8nhC3YYy2r61vA",
-    authDomain: "roadwatch-bf228.firebaseapp.com",
-    projectId: "roadwatch-bf228",
-    storageBucket: "roadwatch-bf228.firebasestorage.app",
-    messagingSenderId: "426371774097",
-    appId: "1:426371774097:web:6cb195da7f3e274005f130",
-    measurementId: "G-QSYD07B7SV"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  let confirmationResult = null;
-  let recaptchaVerifier = null;
-  let firebaseReady = false;
+  // ─── Clerk Init ───
+  let clerkReady = false;
+  let clerkSignIn = null;
 
-  // Setup invisible reCAPTCHA
-  function setupRecaptcha() {
+  async function initClerk() {
     try {
-      recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-        size: 'invisible',
-        callback: () => { console.log('reCAPTCHA solved'); }
-      });
-      recaptchaVerifier.render().then(() => { firebaseReady = true; console.log('Firebase Phone Auth ready'); });
+      await window.Clerk.load();
+      clerkReady = true;
+      console.log('Clerk Auth ready');
     } catch(e) {
-      console.log('Firebase reCAPTCHA setup failed, using fallback mode');
-      firebaseReady = false;
+      console.error('Clerk init failed:', e);
+      clerkReady = false;
     }
   }
-  setupRecaptcha();
+
+  if (window.Clerk) {
+    initClerk();
+  } else {
+    const clerkScript = document.querySelector('script[data-clerk-publishable-key]');
+    if (clerkScript) clerkScript.addEventListener('load', initClerk);
+  }
 
   // Clock
   function updateTime() {
@@ -647,7 +640,7 @@
   }
   initCaptcha();
 
-  // ─── OTP Send (Firebase Phone Auth — NO FALLBACK) ───
+  // ─── OTP Send (Clerk Phone Auth) ───
   async function triggerOtp() {
     const phoneVal = phone.value.replace(/\D/g,'');
     const statusText = document.getElementById('otpStatusText');
@@ -658,16 +651,22 @@
     btn.disabled=true;statusText.innerText='';loader.style.display='block';
     const fullPhone = '+91' + phoneVal;
 
-    if (!firebaseReady || !recaptchaVerifier) {
+    if (!clerkReady || !window.Clerk) {
       loader.style.display='none';
       statusText.className='status-msg status-error';
-      statusText.innerText='Firebase not initialized. Please refresh the page and try again.';
+      statusText.innerText='Auth service not ready. Please refresh and try again.';
       btn.disabled=false;
       return;
     }
 
     try {
-      confirmationResult = await auth.signInWithPhoneNumber(fullPhone, recaptchaVerifier);
+      // Try sign-in flow first (existing user)
+      clerkSignIn = await window.Clerk.client.signIn.create({ identifier: fullPhone });
+      const phoneFactor = clerkSignIn.supportedFirstFactors.find(f => f.strategy === 'phone_code');
+      if (phoneFactor) {
+        clerkSignIn = await clerkSignIn.prepareFirstFactor({ strategy: 'phone_code', phoneNumberId: phoneFactor.phoneNumberId });
+      }
+      clerkSignIn._isSignUp = false;
       loader.style.display='none';
       statusText.className='status-msg status-success';
       statusText.innerText='✓ OTP Sent to ' + fullPhone;
@@ -675,30 +674,33 @@
       otpBoxes[0].focus();
       startResendTimer(btn);
     } catch(err) {
-      loader.style.display='none';
-      confirmationResult = null;
-      console.error('Firebase OTP error:', err);
-      statusText.className='status-msg status-error';
-      if(err.code === 'auth/too-many-requests') {
-        statusText.innerHTML='Firebase rate limit reached. To fix:<br>1. Go to Firebase Console → Authentication → Sign-in method → Phone<br>2. Add your number under "Phone numbers for testing" with code 123456<br>3. Click Save, then try again here.';
-        btn.disabled=false;
-        btn.innerText='RETRY SEND OTP';
-      } else if(err.code === 'auth/invalid-phone-number') {
-        statusText.innerText='Invalid phone number format. Use 10 digit Indian number.';
-        btn.disabled=false;
-      } else if(err.code === 'auth/billing-not-enabled') {
-        statusText.innerHTML='Firebase Billing Error: SMS requires the Blaze plan.<br><b>Free Fix:</b> Go to Firebase Console → Authentication → Sign-in method → Phone → Add your number to "Phone numbers for testing" with code 123456 to bypass SMS.';
-        btn.disabled=false;
-      } else {
-        statusText.innerText='SMS delivery failed (Error: ' + (err.code||err.message||'unknown') + '). Please check your phone number and try again.';
-        btn.disabled=false;
+      console.log('Sign-in attempt result:', err);
+      // If user not found, try sign-up flow
+      if (err.errors && err.errors[0] && (err.errors[0].code === 'form_identifier_not_found' || err.errors[0].code === 'identifier_not_found')) {
+        try {
+          const signUp = await window.Clerk.client.signUp.create({ phoneNumber: fullPhone });
+          await signUp.preparePhoneNumberVerification({ strategy: 'phone_code' });
+          clerkSignIn = { _isSignUp: true, signUp: signUp };
+          loader.style.display='none';
+          statusText.className='status-msg status-success';
+          statusText.innerText='✓ OTP Sent to ' + fullPhone;
+          document.getElementById('otpSection').style.display='flex';
+          otpBoxes[0].focus();
+          startResendTimer(btn);
+          return;
+        } catch(signUpErr) {
+          loader.style.display='none';
+          console.error('Clerk SignUp error:', signUpErr);
+          statusText.className='status-msg status-error';
+          statusText.innerText='Failed to send OTP: ' + (signUpErr.errors?.[0]?.longMessage || signUpErr.message || 'Unknown error');
+          btn.disabled=false;
+          return;
+        }
       }
-      // Reset reCAPTCHA for retry
-      try {
-        recaptchaVerifier.clear();
-        recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible', callback: () => {} });
-        recaptchaVerifier.render();
-      } catch(e){ console.log('reCAPTCHA reset failed:', e); }
+      loader.style.display='none';
+      statusText.className='status-msg status-error';
+      statusText.innerText='Failed to send OTP: ' + (err.errors?.[0]?.longMessage || err.message || 'Unknown error');
+      btn.disabled=false;
     }
   }
 
@@ -728,29 +730,42 @@
     });
   });
 
-  // ─── OTP Verify (Firebase ONLY — no fake fallback) ───
+  // ─── OTP Verify (Clerk) ───
   async function checkOtpComplete() {
     let otpVal=Array.from(otpBoxes).map(b=>b.value).join('');
     const status=document.getElementById('otpVerifyStatus');
     if(otpVal.length===6){
-      if(!confirmationResult) {
+      if(!clerkSignIn) {
         status.innerText='✗ OTP not sent yet. Click Send OTP first.';
         status.className='status-msg status-error';
         isOtpVerified=false;
         validateForm();
         return;
       }
-      // REAL Firebase verification only
-      status.innerText='Verifying OTP with Firebase...';
+
+      status.innerText='Verifying OTP...';
       status.className='status-msg';
       otpBoxes.forEach(b=>{b.disabled=true;});
+
       try {
-        await confirmationResult.confirm(otpVal);
+        let result;
+        if (clerkSignIn._isSignUp) {
+          result = await clerkSignIn.signUp.attemptPhoneNumberVerification({ code: otpVal });
+          if (result.status === 'complete') {
+            await window.Clerk.setActive({ session: result.createdSessionId });
+          }
+        } else {
+          result = await clerkSignIn.attemptFirstFactor({ strategy: 'phone_code', code: otpVal });
+          if (result.status === 'complete') {
+            await window.Clerk.setActive({ session: result.createdSessionId });
+          }
+        }
         status.innerText='✓ OTP Verified Successfully';
         status.className='status-msg status-success';
         isOtpVerified=true;
         otpBoxes.forEach(b=>{b.style.borderColor='var(--green)';b.style.boxShadow='0 0 12px rgba(19,136,8,0.3)';});
       } catch(err) {
+        console.error('Clerk verify error:', err);
         status.innerText='✗ Invalid OTP. Please check the code and try again.';
         status.className='status-msg status-error';
         isOtpVerified=false;
