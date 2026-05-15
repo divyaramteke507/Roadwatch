@@ -574,6 +574,26 @@
   </footer>
 
 
+<script>
+  const API_BASE = window.location.origin;
+
+  // ─── Clerk Init ───
+  let clerkReady = false;
+  let clerkSignIn = null;
+
+  async function initClerk() {
+    if (!window.Clerk) return;
+    try {
+      await window.Clerk.load();
+      clerkReady = true;
+      console.log('Clerk Auth ready');
+    } catch(e) {
+      console.error('Clerk init failed:', e);
+      clerkReady = false;
+    }
+  }
+</script>
+
 <!-- Clerk JS SDK -->
 <script
   async
@@ -584,22 +604,6 @@
 ></script>
 
 <script>
-  const API_BASE = window.location.origin;
-
-  // ─── Clerk Init ───
-  let clerkReady = false;
-  let clerkSignIn = null;
-
-  async function initClerk() {
-    try {
-      await window.Clerk.load();
-      clerkReady = true;
-      console.log('Clerk Auth ready');
-    } catch(e) {
-      console.error('Clerk init failed:', e);
-      clerkReady = false;
-    }
-  }
 
   // Clock
   function updateTime() {
@@ -644,6 +648,11 @@
 
     btn.disabled=true;statusText.innerText='';loader.style.display='block';
     const fullPhone = '+91' + phoneVal;
+
+    // Fallback: if initClerk didn't fire but window.Clerk is available, try init again
+    if (!clerkReady && window.Clerk) {
+      await initClerk();
+    }
 
     if (!clerkReady || !window.Clerk) {
       loader.style.display='none';
