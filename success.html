@@ -288,8 +288,8 @@
           <div class="info-item-value" id="citizen-name">—</div>
         </div>
         <div class="info-item">
-          <div class="info-item-label">PHONE NUMBER</div>
-          <div class="info-item-value" id="citizen-phone">—</div>
+          <div class="info-item-label">EMAIL ADDRESS</div>
+          <div class="info-item-value" id="citizen-email" style="font-size: 14px; word-break: break-all;">—</div>
         </div>
         <div class="info-item">
           <div class="info-item-label">VERIFICATION TIME</div>
@@ -345,7 +345,7 @@
   try {
     const data = JSON.parse(sessionStorage.getItem('authResult') || '{}');
     if (data.firstName) document.getElementById('citizen-name').textContent = data.firstName + ' ' + data.lastName;
-    if (data.phone) document.getElementById('citizen-phone').textContent = '+91 ' + data.phone;
+    if (data.email) document.getElementById('citizen-email').textContent = data.email;
     if (data.loginTime) document.getElementById('verify-time').textContent = data.loginTime;
     else document.getElementById('verify-time').textContent = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
   } catch(e) {
