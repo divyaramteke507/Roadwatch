@@ -136,6 +136,12 @@
             fill: currentColor;
         }
 
+        .status-dot-green {
+            width: 8px; height: 8px; border-radius: 50%; background: #00FF00;
+            box-shadow: 0 0 10px #00FF00; animation: pulseDot 2s infinite;
+        }
+        @keyframes pulseDot { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
         .top-action-btn {
             display: flex;
             align-items: center;
@@ -712,6 +718,10 @@
             GOV SECURE NETWORK • CITIZEN DASHBOARD • ROADWATCH
         </div>
         <div class="right-info">
+            <div style="display: flex; align-items: center; gap: 8px; margin-right: 15px;">
+                <div class="status-dot-green"></div>
+                <span id="live-time" style="font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.15em; color: var(--gold-light);"></span>
+            </div>
             <button class="top-action-btn" onclick="openModal('accessModal')">
                 <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="4" r="2" />
@@ -1066,12 +1076,29 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        // ─── ROUTE GUARD ───
+        // ─── ROUTE GUARD & SESSION LOGIC ───
         if (!sessionStorage.getItem('successPassed') && !sessionStorage.getItem('authResult')) {
             window.location.href = 'login.html';
         } else if (!sessionStorage.getItem('successPassed')) {
             window.location.href = 'success.html';
         }
+
+        const loginTimestamp = sessionStorage.getItem('loginTimestamp');
+        if (loginTimestamp && (Date.now() - parseInt(loginTimestamp)) > 3600000) {
+            sessionStorage.clear();
+            alert('Your secure session has expired (1 hour limit). Please log in again.');
+            window.location.href = 'login.html';
+        }
+
+        // ─── CLOCK ───
+        function updateTime() {
+            const now = new Date();
+            const timeSpan = document.getElementById('live-time');
+            if (timeSpan) {
+                timeSpan.innerText = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).toUpperCase() + " IST";
+            }
+        }
+        setInterval(updateTime, 1000); updateTime();
 
         // ─── INITIALIZE PARTICLES ───
         const pc = document.getElementById('particles');
