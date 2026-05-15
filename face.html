@@ -1022,7 +1022,7 @@
       sessionStorage.setItem('citizenPhoto', photoData);
     } catch(e){ console.log('Photo capture failed:', e); }
 
-    const result={firstName:data.user?.firstName||'',lastName:data.user?.lastName||'',phone:data.user?.phone||'',loginTime:data.loginTime||new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})};
+    const result={firstName:data.user?.firstName||citizenData.firstName||'',lastName:data.user?.lastName||citizenData.lastName||'',phone:data.user?.phone||'',email:data.user?.email||citizenData.email||'',loginTime:data.loginTime||new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})};
     sessionStorage.setItem('authResult',JSON.stringify(result));
     try{fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sms_alert',phone:result.phone,loginTime:result.loginTime,location:'India'})});}catch(e){}
     setTimeout(()=>{window.location.href='success.html';},2500);
