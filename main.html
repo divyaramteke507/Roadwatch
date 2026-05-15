@@ -816,7 +816,7 @@
                                 d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                         </svg>
                         <div class="ai-text">
-                            <span>GEMINI 1.5 FLASH AI ANALYSIS COMPLETE</span>
+                            <span id="aiBannerTitle">GEMINI 1.5 FLASH AI ANALYSIS COMPLETE</span>
                             Detected: <strong id="aiIssue">Pothole</strong> | Severity: <strong id="aiSeverity"
                                 style="color:#B05000;">Critical</strong>
                         </div>
@@ -1192,6 +1192,7 @@
                     });
                     
                     const data = await response.json();
+                    if (data.error) throw new Error(data.error.message || "Unknown API error");
                     let aiResponse = data.candidates[0].content.parts[0].text;
                     
                     aiResponse = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -1200,6 +1201,11 @@
                     const center = map.getCenter();
                     uploadZone.innerHTML = `<div class="upload-zone-text" style="color:var(--green)">✓ Photo Analyzed Automatically</div><div class="upload-zone-sub">Extracted coords: ${center.lat.toFixed(4)}° N, ${center.lng.toFixed(4)}° E</div>`;
                     
+                    const aiBannerTitle = document.getElementById('aiBannerTitle');
+                    if (aiBannerTitle) {
+                        aiBannerTitle.innerText = "GEMINI 1.5 FLASH AI ANALYSIS COMPLETE";
+                        aiBannerTitle.style.color = "inherit";
+                    }
                     aiBanner.classList.add('active');
                     
                     document.getElementById('categorySelect').value = result.category || 'other';
@@ -1223,7 +1229,14 @@
                     
                 } catch (err) {
                     console.error("Gemini API Error:", err);
-                    uploadZone.innerHTML = `<div class="upload-zone-text" style="color:#8B1A00">⚠ AI Analysis Failed. Please fill manually.</div>`;
+                    uploadZone.innerHTML = `<div class="upload-zone-text" style="color:#8B1A00; font-weight: bold; text-transform: uppercase;">⚠ AI Analysis Failed. Please fill manually.</div><div class="upload-zone-sub" style="color: #8B1A00;">${err.message || 'API request rejected or invalid key'}</div>`;
+                    
+                    const aiBannerTitle = document.getElementById('aiBannerTitle');
+                    if(aiBannerTitle) {
+                        aiBannerTitle.innerText = "GEMINI VISION AI FAILED";
+                        aiBannerTitle.style.color = "#8B1A00";
+                    }
+                    
                     document.getElementById('aiIssue').innerText = "MANUAL ENTRY REQUIRED";
                     document.getElementById('aiSeverity').innerText = "N/A";
                     document.getElementById('aiSeverity').style.color = "inherit";
