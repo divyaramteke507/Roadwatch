@@ -855,8 +855,7 @@
                             placeholder="Provide any additional details or nearby landmarks..."></textarea>
                     </div>
 
-                    <button class="btn-submit"
-                        onclick="alert('Report securely submitted to local authorities.')">Register Complaint</button>
+                    <button class="btn-submit" onclick="submitReport()">Register Complaint</button>
                 </div>
 
                 <div class="report-map-col glass-card" style="padding: 15px;">
@@ -883,6 +882,13 @@
                     My Profile
                 </div>
                 
+                <!-- Session Expiry Timer -->
+                <div style="background: rgba(255,193,7,0.2); border: 1px solid #F57C00; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+                    <div style="font-family: 'Cinzel', serif; font-size: 13px; color: var(--navy); letter-spacing: 0.1em; margin-bottom: 10px;">⏱️ SESSION EXPIRES IN</div>
+                    <div id="sessionTimer" style="font-family: 'Cinzel', serif; font-size: 36px; color: #E65100; font-weight: 700; letter-spacing: 0.05em;">15:00</div>
+                    <div style="font-size: 13px; color: rgba(0,0,80,0.7); margin-top: 8px;">Your secure session will automatically expire for security</div>
+                </div>
+                
                 <div style="display: flex; gap: 30px; margin-top: 20px; align-items: flex-start; flex-wrap: wrap;">
                     <div style="flex: 0 0 auto; width: 150px; height: 150px; border-radius: 50%; border: 4px solid var(--gold); overflow: hidden; background: rgba(0,0,128,0.1); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
                         <img id="profile-photo" src="" alt="Citizen Photo" style="width: 100%; height: 100%; object-fit: cover; display: none; transform: scaleX(-1);">
@@ -907,6 +913,18 @@
                             <div style="font-size: 16px; font-weight: 600; color: var(--green);">● Active & Verified</div>
                         </div>
                     </div>
+                </div>
+                
+                <!-- Reported Issues Section -->
+                <div style="margin-top: 30px;">
+                    <div style="font-family: 'Cinzel', serif; font-size: 18px; color: var(--navy); font-weight: 700; margin-bottom: 15px; letter-spacing: 0.05em; display: flex; align-items: center; gap: 10px;">
+                        <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; stroke: var(--saffron-deep); fill: none;">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        MY REPORTED ISSUES
+                    </div>
+                    <div id="reportsList"></div>
                 </div>
             </div>
         </section>
@@ -1269,6 +1287,161 @@
             document.body.className = '';
             currentFontSize = 1; document.documentElement.style.fontSize = '100%';
             document.querySelectorAll('.access-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        // ─── SESSION TIMER (15 minutes countdown) ───
+        let sessionTime = 15 * 60; // 15 minutes in seconds
+        const timerDisplay = document.getElementById('sessionTimer');
+        
+        function updateSessionTimer() {
+            if (!timerDisplay) return;
+            const minutes = Math.floor(sessionTime / 60);
+            const seconds = sessionTime % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (sessionTime <= 0) {
+                alert('Session expired! Please login again.');
+                sessionStorage.clear();
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Change color when less than 5 minutes
+            if (sessionTime <= 300) {
+                timerDisplay.style.color = '#C62828';
+            }
+            
+            sessionTime--;
+        }
+        
+        setInterval(updateSessionTimer, 1000);
+        updateSessionTimer();
+
+        // ─── LOAD REPORTED ISSUES ───
+        function loadReportedIssues() {
+            const reports = JSON.parse(localStorage.getItem('roadReports') || '[]');
+            const reportsList = document.getElementById('reportsList');
+            
+            if (!reportsList) return;
+            
+            if (reports.length === 0) {
+                reportsList.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; color: rgba(0,0,80,0.6);">
+                        <div style="font-size: 64px; margin-bottom: 20px; opacity: 0.5;">📭</div>
+                        <div style="font-family: 'Cinzel', serif; font-size: 18px; color: var(--navy); margin-bottom: 10px; letter-spacing: 0.1em;">
+                            NO REPORTS YET
+                        </div>
+                        <div style="font-size: 14px;">
+                            Start reporting road issues to make your community safer
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const categoryNames = {
+                'pothole': 'Pothole',
+                'crack': 'Road Crack',
+                'waterlogging': 'Waterlogging',
+                'manhole': 'Open Manhole',
+                'divider': 'Broken Divider',
+                'light': 'Missing Streetlight',
+                'traffic_signal': 'Traffic Signal Malfunction',
+                'zebra_crossing': 'Faded Zebra Crossing',
+                'water_leakage': 'Water Leakage',
+                'garbage_dump': 'Garbage Dump',
+                'other': 'Other Issue'
+            };
+            
+            reportsList.innerHTML = reports.map((report, index) => {
+                const statusClass = 'status-' + (report.status || 'reported').toLowerCase().replace(' ', '-');
+                const statusColors = {
+                    'reported': 'background: rgba(255,193,7,0.2); color: #F57C00; border: 1px solid #F57C00;',
+                    'review': 'background: rgba(33,150,243,0.2); color: #1976D2; border: 1px solid #1976D2;',
+                    'assigned': 'background: rgba(156,39,176,0.2); color: #7B1FA2; border: 1px solid #7B1FA2;',
+                    'progress': 'background: rgba(255,152,0,0.2); color: #E65100; border: 1px solid #E65100;',
+                    'resolved': 'background: rgba(76,175,80,0.2); color: #388E3C; border: 1px solid #388E3C;'
+                };
+                
+                return `
+                    <div style="background: rgba(255,255,255,0.4); border: 1px solid rgba(0,0,128,0.2); border-radius: 12px; padding: 20px; margin-bottom: 15px; transition: all 0.3s;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                            <div style="font-family: 'Cinzel', serif; font-size: 16px; color: var(--navy); font-weight: 600; letter-spacing: 0.05em;">
+                                ${categoryNames[report.category] || report.category || 'Road Issue'}
+                            </div>
+                            <div style="padding: 4px 10px; border-radius: 15px; font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.1em; font-weight: 600; ${statusColors[report.status?.toLowerCase()] || statusColors['reported']}">
+                                ${(report.status || 'REPORTED').toUpperCase()}
+                            </div>
+                        </div>
+                        <div style="font-size: 14px; color: rgba(0,0,80,0.75); line-height: 1.6; margin-bottom: 10px;">
+                            <strong>Location:</strong> ${report.roadName || 'Location not specified'}<br>
+                            <strong>Description:</strong> ${report.description || 'No description provided'}
+                        </div>
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 12px; color: rgba(0,0,80,0.6);">
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                📅 ${new Date(report.timestamp).toLocaleDateString('en-IN')}
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                🕐 ${new Date(report.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                📍 Lat: ${report.location?.lat?.toFixed(4) || 'N/A'}, Lng: ${report.location?.lng?.toFixed(4) || 'N/A'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).reverse().join('');
+        }
+        
+        // Load reports when profile tab is opened
+        loadReportedIssues();
+
+        // ─── SUBMIT REPORT FUNCTION ───
+        function submitReport() {
+            const category = document.getElementById('categorySelect').value;
+            const severity = document.getElementById('severitySelect').value;
+            const description = document.getElementById('issueDescription').value;
+            
+            if (!category) {
+                alert('Please select an issue category');
+                return;
+            }
+            
+            const center = map.getCenter();
+            const reportData = {
+                category: category,
+                severity: severity,
+                description: description,
+                roadName: `Location: ${center.lat.toFixed(4)}°N, ${center.lng.toFixed(4)}°E`,
+                location: { lat: center.lat, lng: center.lng },
+                timestamp: new Date().toISOString(),
+                status: 'Reported'
+            };
+            
+            // Save to localStorage
+            let reports = JSON.parse(localStorage.getItem('roadReports') || '[]');
+            reports.push(reportData);
+            localStorage.setItem('roadReports', JSON.stringify(reports));
+            
+            alert('✅ Report submitted successfully!\n\nYour complaint has been registered and will be reviewed by authorities.');
+            
+            // Reset form
+            document.getElementById('categorySelect').value = '';
+            document.getElementById('severitySelect').value = 'low';
+            document.getElementById('issueDescription').value = '';
+            document.getElementById('aiBanner').classList.remove('active');
+            document.getElementById('photoUpload').innerHTML = `
+                <svg viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                </svg>
+                <div class="upload-zone-text">Tap to Upload Geotagged Photo</div>
+                <div class="upload-zone-sub">Gemini Vision AI will automatically analyze damage & location.</div>
+            `;
+            
+            // Reload reports in profile tab
+            loadReportedIssues();
         }
 
         // ─── DIRECT FEEDBACK API (FormSubmit.co) ───
