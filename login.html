@@ -889,10 +889,17 @@
     if(!submitBtn.classList.contains('active'))return;
     submitBtn.innerHTML='<div class="loader" style="display:inline-block;width:20px;height:20px;border:2.5px solid var(--gold-light);border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Processing...';
     const emailVal = emailInp.value.trim();
+
+    // Get user details from Clerk if available (for login mode)
+    const clerkUser = window.Clerk?.user;
+    const finalFName = clerkUser?.firstName || fName.value.trim() || 'Citizen';
+    const finalLName = clerkUser?.lastName || lName.value.trim() || '';
+
     try {
-      await fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',firstName:fName.value.trim(),lastName:lName.value.trim(),email:emailVal})});
+      await fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',firstName:finalFName,lastName:finalLName,email:emailVal})});
     } catch(err){console.log('Backend not available, continuing offline');}
-    sessionStorage.setItem('citizenData',JSON.stringify({firstName:fName.value.trim(),lastName:lName.value.trim(),email:emailVal}));
+    
+    sessionStorage.setItem('citizenData',JSON.stringify({firstName:finalFName,lastName:finalLName,email:emailVal}));
     sessionStorage.setItem('loginVerified','true');
     window.location.href='face.html';
   });
