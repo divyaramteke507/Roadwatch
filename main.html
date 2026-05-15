@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard – RoadWatch National Portal</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600&family=Cinzel:wght@400;500;600;700;900&family=Noto+Serif+Devanagari:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style>
+        :root {
+            --saffron: #FF9933;
+            --saffron-light: #FFAD5C;
+            --saffron-deep: #E07800;
+            --white: #FFFFFF;
+            --navy: #000080;
+            --navy-light: #1a2a8a;
+            --gold: #C9922A;
+            --gold-light: #E8B84B;
+            --gold-bright: #FFD700;
+            --green: #138808;
+            --chakra: #0047AB;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            font-size: 100%;
+            transition: font-size 0.3s ease;
+        }
+
+        body {
+            font-family: 'Cormorant Garamond', serif;
+            background: linear-gradient(160deg, #FFF3DC 0%, #FFE0A0 20%, #FFDAA0 40%, #FFD080 60%, #FFB84A 80%, #FF9933 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+        }
+
+        /* ─── PERFORMANCE-OPTIMIZED ACCESSIBILITY ─── */
+        body.access-invert {
+            filter: invert(1) hue-rotate(180deg);
+            background: #000;
+        }
+
+        body.access-dark-contrast {
+            background: #121212 !important;
+            color: #ffffff !important;
+        }
+
+        body.access-saturate {
+            filter: saturate(200%);
+        }
+
+        body.access-hide-img img,
+        body.access-hide-img svg {
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+
+        body.access-highlight-links a,
+        body.access-highlight-links button {
+            outline: 3px solid #ff0000 !important;
+            border-radius: 2px !important;
+        }
+
+        /* Disable heavy glass blurs & animations when access modes are on to prevent lag */
+        body.access-invert .glass-card,
+        body.access-dark-contrast .glass-card {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            background: #fff !important;
+            color: #000 !important;
+            border: 2px solid #000;
+            box-shadow: none !important;
+        }
+
+        body.access-dark-contrast .glass-card {
+            background: #222 !important;
+            color: #fff !important;
+            border-color: #555 !important;
+        }
+
+        body.access-invert .bg-chakra,
+        body.access-dark-contrast .bg-chakra,
+        body.access-invert .particles,
+        body.access-dark-contrast .particles {
+            display: none !important;
+        }
+
+        /* ─── TOP SECURE BAR ─── */
+        .top-secure-bar {
+            background: var(--navy);
+            color: var(--gold-light);
+            font-family: 'Cinzel', serif;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            padding: 8px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 9005;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .top-secure-bar .left-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .top-secure-bar .right-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .secure-icon {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        .top-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--white);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: 0.3s;
+        }
+
+        .top-action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .top-action-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.5;
+        }
+
+        /* ─── ORNAMENTS (FIXED SIZING) ─── */
+        .royal-border {
+            position: absolute;
+            top: 40px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            border: 2px solid rgba(201, 146, 42, 0.55);
+            pointer-events: none;
+            z-index: 1;
+            border-radius: 2px;
+        }
+
+        .royal-border::before {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            border: 1px solid rgba(201, 146, 42, 0.3);
+            border-radius: 1px;
+        }
+
+        .corner { position: absolute; width: 90px; height: 90px; z-index: 10000; pointer-events: none; }
+        .corner svg { width: 100%; height: 100%; }
+        .corner-tl { top: 50px; left: 12px; }
+        .corner-tr { top: 50px; right: 12px; transform: scaleX(-1); }
+        .corner-bl { bottom: 12px; left: 12px; transform: scaleY(-1); }
+        .corner-br { bottom: 12px; right: 12px; transform: scale(-1,-1); }
+
+        .bg-india-text {
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            font-family: 'Cinzel', serif; font-size: clamp(80px, 20vw, 250px);
+            font-weight: 900; color: rgba(0, 0, 128, 0.04);
+            letter-spacing: 0.3em; white-space: nowrap; pointer-events: none; z-index: 0;
+        }
+        .particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+        .particle {
+            position: absolute; width: 3px; height: 3px; background: var(--gold-bright);
+            border-radius: 50%; box-shadow: 0 0 10px var(--gold); opacity: 0.3;
+            animation: floatUp 15s linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+        }
+
+        .bg-chakra {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            margin-top: -350px;
+            margin-left: -350px;
+            width: 700px;
+            height: 700px;
+            opacity: 0.045;
+            animation: slowSpin 120s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes slowSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ─── MAIN APP CONTAINER (FULL SCREEN WIDE) ─── */
+        .app-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            max-width: 98vw;
+            margin: 0 auto;
+            width: 100%;
+            padding: 25px 15px 15px;
+        }
+
+        /* ─── HEADER & TABS ─── */
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .app-header img {
+            width: 50px;
+            height: 50px;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2));
+        }
+
+        .app-title-group .title {
+            font-family: 'Cinzel', serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--navy);
+            letter-spacing: 0.1em;
+            line-height: 1.1;
+        }
+
+        .app-title-group .subtitle {
+            font-family: 'Cinzel', serif;
+            font-size: 12px;
+            color: rgba(0, 0, 128, 0.7);
+            letter-spacing: 0.2em;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.4);
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 0, 128, 0.15);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            max-width: 800px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 15px;
+            text-align: center;
+            font-family: 'Cinzel', serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--navy);
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.1em;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .tab-btn.active {
+            background: var(--navy);
+            color: var(--gold-light);
+            box-shadow: 0 4px 12px rgba(0, 0, 128, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* ─── SHARED CARD STYLES ─── */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(15px) saturate(150%);
+            -webkit-backdrop-filter: blur(15px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 16px 40px rgba(0, 0, 80, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-title {
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            color: var(--navy);
+            font-weight: 700;
+            margin-bottom: 15px;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--saffron-deep);
+            fill: none;
+        }
+
+        /* ─── REPORT TAB (SPLIT LAYOUT) ─── */
+        .report-layout {
+            display: flex;
+            gap: 20px;
+            align-items: stretch;
+            flex: 1;
+        }
+
+        .report-form-col {
+            flex: 0 0 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .report-map-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 500px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 8px;
+        }
+
+        .form-label {
+            font-family: 'Cinzel', serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--navy);
+            letter-spacing: 0.1em;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .form-control {
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(0, 0, 128, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            color: var(--navy);
+            outline: none;
+            transition: 0.3s;
+            width: 100%;
+        }
+
+        .form-control:focus {
+            background: #fff;
+            border-color: var(--navy);
+            box-shadow: 0 0 8px rgba(0, 0, 128, 0.15);
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(0, 0, 128, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .upload-zone:hover {
+            background: rgba(255, 255, 255, 0.7);
+            border-color: var(--navy);
+        }
+
+        .upload-zone svg {
+            width: 30px;
+            height: 30px;
+            stroke: var(--navy);
+            margin-bottom: 8px;
+            opacity: 0.7;
+            fill: none;
+        }
+
+        .upload-zone-text {
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            color: var(--navy);
+            font-weight: 600;
+        }
+
+        .upload-zone-sub {
+            font-size: 11px;
+            color: rgba(0, 0, 128, 0.6);
+            margin-top: 4px;
+        }
+
+        .ai-banner {
+            display: none;
+            background: rgba(19, 136, 8, 0.1);
+            border: 1px solid rgba(19, 136, 8, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 5px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ai-banner.active {
+            display: flex;
+        }
+
+        .ai-banner svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--green);
+            fill: none;
+            flex-shrink: 0;
+        }
+
+        .ai-text {
+            font-size: 12px;
+            color: var(--navy);
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .ai-text span {
+            color: var(--green);
+            font-family: 'Cinzel', serif;
+            font-size: 10px;
+            letter-spacing: 0.05em;
+            display: block;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+            color: var(--gold-light);
+            font-family: 'Cinzel', serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            padding: 14px;
+            border: 1px solid rgba(201, 146, 42, 0.8);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            margin-top: auto;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 128, 0.3);
+        }
+
+        /* Map Container */
+        .map-wrapper {
+            flex: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            z-index: 1;
+        }
+
+        /* ─── MODALS (Accessibility & Feedback) ─── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 50, 0.5);
+            backdrop-filter: blur(3px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: #fff;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            padding: 25px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            transform: translateY(20px);
+            transition: 0.3s;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .modal-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--navy);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-close {
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+        }
+
+        .btn-close:hover {
+            color: #000;
+        }
+
+        /* Accessibility Grid */
+        .access-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .access-btn {
+            background: #f8f9fa;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: var(--navy);
+        }
+
+        .access-btn:hover {
+            background: #eef;
+            border-color: var(--navy);
+        }
+
+        .access-btn.active {
+            background: var(--navy);
+            color: #FFF;
+            border-color: var(--navy);
+        }
+
+        .access-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        .access-btn span {
+            font-size: 12px;
+            font-weight: 600;
+            font-family: sans-serif;
+        }
+
+        @media (max-width: 900px) {
+            .report-layout {
+                flex-direction: column;
+            }
+
+            .report-form-col {
+                flex: none;
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .report-map-col {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="top-secure-bar">
+        <div class="left-info">
+            <svg class="secure-icon" viewBox="0 0 24 24">
+                <path
+                    d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
+            </svg>
+            GOV SECURE NETWORK • CITIZEN DASHBOARD • ROADWATCH
+        </div>
+        <div class="right-info">
+            <button class="top-action-btn" onclick="openModal('accessModal')">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="4" r="2" />
+                    <path d="M15 22v-5l-3-3v-4c2 0 4-2 5-4.5" />
+                    <path d="M9 22v-5l3-3v-4c-2 0-4-2-5-4.5" />
+                    <path d="M4 8h16" />
+                </svg>
+                Accessibility
+            </button>
+            <button class="top-action-btn" onclick="openModal('feedbackModal')">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+                Feedback
+            </button>
+        </div>
+    </div>
+
+    <div class="royal-border"></div>
+    <div class="corner corner-tl"><svg viewBox="0 0 80 80" fill="none"><path d="M10,10 L10,40 M10,10 L40,10" stroke="#C9922A" stroke-width="2.5"/><path d="M10,10 Q25,10 25,25 Q25,10 10,10" fill="rgba(201,146,42,0.2)" stroke="#C9922A" stroke-width="1"/><circle cx="10" cy="10" r="3" fill="#C9922A"/><path d="M18,10 L18,18 L10,18" stroke="rgba(201,146,42,0.4)" stroke-width="1"/></svg></div>
+    <div class="corner corner-tr"><svg viewBox="0 0 80 80" fill="none"><path d="M10,10 L10,40 M10,10 L40,10" stroke="#C9922A" stroke-width="2.5"/><circle cx="10" cy="10" r="3" fill="#C9922A"/><path d="M18,10 L18,18 L10,18" stroke="rgba(201,146,42,0.4)" stroke-width="1"/></svg></div>
+    <div class="corner corner-bl"><svg viewBox="0 0 80 80" fill="none"><path d="M10,10 L10,40 M10,10 L40,10" stroke="#C9922A" stroke-width="2.5"/><circle cx="10" cy="10" r="3" fill="#C9922A"/><path d="M18,10 L18,18 L10,18" stroke="rgba(201,146,42,0.4)" stroke-width="1"/></svg></div>
+    <div class="corner corner-br"><svg viewBox="0 0 80 80" fill="none"><path d="M10,10 L10,40 M10,10 L40,10" stroke="#C9922A" stroke-width="2.5"/><circle cx="10" cy="10" r="3" fill="#C9922A"/><path d="M18,10 L18,18 L10,18" stroke="rgba(201,146,42,0.4)" stroke-width="1"/></svg></div>
+    <div class="bg-india-text">INDIA</div>
+    <div class="particles" id="particles"></div>
+    <svg class="bg-chakra" viewBox="0 0 500 500">
+        <g transform="translate(250,250)">
+            <circle r="220" fill="none" stroke="#0047AB" stroke-width="4" />
+            <circle r="200" fill="none" stroke="#0047AB" stroke-width="1.5" />
+            <g>
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(30)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(60)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(90)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(120)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(150)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(180)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(210)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(240)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(270)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(300)" />
+                <line x1="0" y1="-50" x2="0" y2="-200" stroke="#0047AB" stroke-width="2.5" transform="rotate(330)" />
+            </g>
+        </g>
+    </svg>
+
+    <main class="app-container">
+
+        <header class="app-header">
+            <img src="Ashok_Stambh.png" alt="Emblem of India" onerror="this.style.display='none'">
+            <div class="app-title-group">
+                <div class="title">ROADWATCH</div>
+                <div class="subtitle">Report → Track → Verify → Improve</div>
+            </div>
+        </header>
+
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('report')">REPORT ISSUE</button>
+            <button class="tab-btn" onclick="switchTab('profile')">MY PROFILE</button>
+            <button class="tab-btn" onclick="switchTab('faqs')">FAQs</button>
+        </div>
+
+        <section id="tab-report" class="tab-content active">
+            <div class="report-layout">
+
+                <div class="report-form-col glass-card">
+                    <div class="card-title">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="12" y1="18" x2="12" y2="12" />
+                            <line x1="9" y1="15" x2="15" y2="15" />
+                        </svg>
+                        Submit Infrastructure Report
+                    </div>
+
+                    <div class="upload-zone" id="photoUpload" onclick="simulateAIUpload()">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <div class="upload-zone-text">Tap to Upload Geotagged Photo</div>
+                        <div class="upload-zone-sub">Gemini Vision AI will automatically analyze damage & location.
+                        </div>
+                    </div>
+
+                    <div class="ai-banner" id="aiBanner">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                        </svg>
+                        <div class="ai-text">
+                            <span>GEMINI 1.5 FLASH AI ANALYSIS COMPLETE</span>
+                            Detected: <strong id="aiIssue">Pothole</strong> | Severity: <strong id="aiSeverity"
+                                style="color:#B05000;">Critical</strong>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label class="form-label">Issue Category</label>
+                        <select class="form-control" id="categorySelect">
+                            <option value="">Select Category...</option>
+                            <option value="pothole">Pothole</option>
+                            <option value="crack">Crack / Surface Damage</option>
+                            <option value="waterlogging">Waterlogging</option>
+                            <option value="manhole">Open Manhole</option>
+                            <option value="divider">Broken Divider</option>
+                            <option value="light">Missing Streetlight</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Severity</label>
+                        <select class="form-control" id="severitySelect">
+                            <option value="low">Low - Minor inconvenience</option>
+                            <option value="medium">Medium - Potential hazard</option>
+                            <option value="critical">Critical - Immediate danger</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Description & Landmarks</label>
+                        <textarea class="form-control" rows="2"
+                            placeholder="Provide any additional details or nearby landmarks..."></textarea>
+                    </div>
+
+                    <button class="btn-submit"
+                        onclick="alert('Report securely submitted to local authorities.')">Register Complaint</button>
+                </div>
+
+                <div class="report-map-col glass-card" style="padding: 15px;">
+                    <div class="card-title" style="margin-bottom: 10px; padding-left: 5px;">
+                        <svg viewBox="0 0 24 24">
+                            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                            <line x1="9" y1="3" x2="9" y2="18" />
+                            <line x1="15" y1="6" x2="15" y2="21" />
+                        </svg>
+                        Live GIS Locator
+                    </div>
+                    <div class="map-wrapper">
+                        <div id="map"></div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="tab-profile" class="tab-content">
+            <div class="glass-card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    My Profile
+                </div>
+                
+                <div style="display: flex; gap: 30px; margin-top: 20px; align-items: flex-start; flex-wrap: wrap;">
+                    <div style="flex: 0 0 auto; width: 150px; height: 150px; border-radius: 50%; border: 4px solid var(--gold); overflow: hidden; background: rgba(0,0,128,0.1); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
+                        <img id="profile-photo" src="" alt="Citizen Photo" style="width: 100%; height: 100%; object-fit: cover; display: none; transform: scaleX(-1);">
+                        <div id="profile-no-photo" style="font-family: 'Cinzel', serif; font-size: 12px; color: var(--navy); letter-spacing: 0.1em;">NO PHOTO</div>
+                    </div>
+                    
+                    <div style="flex: 1; min-width: 250px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.6);">
+                            <div style="font-family: 'Cinzel', serif; font-size: 11px; font-weight: 600; color: rgba(0,0,100,0.6); letter-spacing: 0.12em; margin-bottom: 5px;">CITIZEN NAME</div>
+                            <div id="profile-name" style="font-size: 18px; font-weight: 600; color: var(--navy);">—</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.6);">
+                            <div style="font-family: 'Cinzel', serif; font-size: 11px; font-weight: 600; color: rgba(0,0,100,0.6); letter-spacing: 0.12em; margin-bottom: 5px;">EMAIL ADDRESS</div>
+                            <div id="profile-email" style="font-size: 16px; font-weight: 600; color: var(--navy); word-break: break-all;">—</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.6);">
+                            <div style="font-family: 'Cinzel', serif; font-size: 11px; font-weight: 600; color: rgba(0,0,100,0.6); letter-spacing: 0.12em; margin-bottom: 5px;">VERIFICATION TIME</div>
+                            <div id="profile-time" style="font-size: 16px; font-weight: 600; color: var(--navy);">—</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.4); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.6);">
+                            <div style="font-family: 'Cinzel', serif; font-size: 11px; font-weight: 600; color: rgba(0,0,100,0.6); letter-spacing: 0.12em; margin-bottom: 5px;">STATUS</div>
+                            <div style="font-size: 16px; font-weight: 600; color: var(--green);">● Active & Verified</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-faqs" class="tab-content">
+            <div class="glass-card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Frequently Asked Questions
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                    <details style="background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,128,0.1); border-radius: 8px; padding: 15px; cursor: pointer;">
+                        <summary style="font-family: 'Cinzel', serif; font-weight: 700; color: var(--navy); font-size: 16px; outline: none;">What is RoadWatch National Portal?</summary>
+                        <p style="margin-top: 10px; line-height: 1.5; color: #333; font-size: 16px;">RoadWatch is an AI-powered portal allowing citizens to report road and infrastructure issues directly to local authorities using geotagged photos.</p>
+                    </details>
+                    <details style="background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,128,0.1); border-radius: 8px; padding: 15px; cursor: pointer;">
+                        <summary style="font-family: 'Cinzel', serif; font-weight: 700; color: var(--navy); font-size: 16px; outline: none;">How does Gemini Vision AI help?</summary>
+                        <p style="margin-top: 10px; line-height: 1.5; color: #333; font-size: 16px;">The integrated AI automatically analyzes uploaded photos to determine the severity of damage and categorizes the issue (e.g., critical pothole) to prioritize repairs.</p>
+                    </details>
+                    <details style="background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,128,0.1); border-radius: 8px; padding: 15px; cursor: pointer;">
+                        <summary style="font-family: 'Cinzel', serif; font-weight: 700; color: var(--navy); font-size: 16px; outline: none;">Is my personal data secure?</summary>
+                        <p style="margin-top: 10px; line-height: 1.5; color: #333; font-size: 16px;">Yes. Your login is protected by advanced biometric verification and OTP. Session data is encrypted and handled only over secure government networks.</p>
+                    </details>
+                    <details style="background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,128,0.1); border-radius: 8px; padding: 15px; cursor: pointer;">
+                        <summary style="font-family: 'Cinzel', serif; font-weight: 700; color: var(--navy); font-size: 16px; outline: none;">Can I track my complaints?</summary>
+                        <p style="margin-top: 10px; line-height: 1.5; color: #333; font-size: 16px;">Currently, you can submit reports directly. In future updates, a tracking dashboard will be made available to see the resolution status of reported issues.</p>
+                    </details>
+                    <details style="background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,128,0.1); border-radius: 8px; padding: 15px; cursor: pointer;">
+                        <summary style="font-family: 'Cinzel', serif; font-weight: 700; color: var(--navy); font-size: 16px; outline: none;">What should I do if the AI categorizes my issue wrongly?</summary>
+                        <p style="margin-top: 10px; line-height: 1.5; color: #333; font-size: 16px;">You can manually change the category and severity from the dropdown lists provided on the report form before submission.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div class="modal-overlay" id="accessModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="4" r="2" />
+                        <path d="M15 22v-5l-3-3v-4c2 0 4-2 5-4.5" />
+                        <path d="M9 22v-5l3-3v-4c-2 0-4-2-5-4.5" />
+                        <path d="M4 8h16" />
+                    </svg>
+                    Accessibility Controls
+                </div>
+                <button class="btn-close" onclick="closeModal('accessModal')">&times;</button>
+            </div>
+            <div class="access-grid">
+                <button class="access-btn" onclick="toggleAccess('access-dark-contrast', this)">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="5" />
+                        <path
+                            d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                    </svg>
+                    <span>Dark Contrast</span>
+                </button>
+                <button class="access-btn" onclick="toggleAccess('access-invert', this)">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 2a10 10 0 0 0 0 20z" />
+                    </svg>
+                    <span>Invert Colors</span>
+                </button>
+                <button class="access-btn" onclick="toggleAccess('access-saturate', this)">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                    </svg>
+                    <span>High Saturation</span>
+                </button>
+                <button class="access-btn" onclick="changeFontSize(1.1)">
+                    <span style="font-size: 18px;">A+</span>
+                    <span>Text Size Increase</span>
+                </button>
+                <button class="access-btn" onclick="changeFontSize(0.9)">
+                    <span style="font-size: 14px;">A-</span>
+                    <span>Text Size Decrease</span>
+                </button>
+                <button class="access-btn" onclick="toggleAccess('access-highlight-links', this)">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    <span>Highlight Links</span>
+                </button>
+                <button class="access-btn" onclick="toggleAccess('access-hide-img', this)">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <line x1="3" y1="3" x2="21" y2="21" />
+                    </svg>
+                    <span>Hide Images</span>
+                </button>
+                <button class="access-btn" onclick="resetAccessibility()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                    </svg>
+                    <span>Reset Defaults</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="feedbackModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                    </svg>
+                    Send Feedback
+                </div>
+                <button class="btn-close" onclick="closeModal('feedbackModal')">&times;</button>
+            </div>
+
+            <form id="directFeedbackForm" style="display: flex; flex-direction: column; gap: 15px;">
+                <p style="font-family: sans-serif; font-size: 14px; color: #555; margin:0;">Send us your feedback
+                    directly. It will be emailed securely to the admin.</p>
+
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label style="font-family: sans-serif; font-size: 12px; font-weight: bold; color: #333;">YOUR
+                        FEEDBACK</label>
+                    <textarea id="feedbackText" rows="5" required
+                        placeholder="Describe your experience or suggest an improvement..."
+                        style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-family: sans-serif; resize: vertical;"></textarea>
+                </div>
+
+                <button type="submit" id="submitFeedbackBtn"
+                    style="background: var(--navy); color: white; border: none; padding: 14px; border-radius: 8px; font-family: 'Cinzel', serif; font-size: 15px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; transition: 0.3s;">Send
+                    Feedback Directly</button>
+            </form>
+
+        </div>
+    </div>
+
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // ─── ROUTE GUARD ───
+        if (!sessionStorage.getItem('successPassed') && !sessionStorage.getItem('authResult')) {
+            window.location.href = 'login.html';
+        } else if (!sessionStorage.getItem('successPassed')) {
+            window.location.href = 'success.html';
+        }
+
+        // ─── INITIALIZE PARTICLES ───
+        const pc = document.getElementById('particles');
+        if(pc) {
+            for(let i=0;i<15;i++){let p=document.createElement('div');p.className='particle';p.style.left=Math.random()*100+'vw';p.style.animationDuration=(Math.random()*10+10)+'s';p.style.animationDelay=(Math.random()*5)+'s';pc.appendChild(p);}
+        }
+
+        // ─── POPULATE PROFILE ───
+        try {
+            const data = JSON.parse(sessionStorage.getItem('authResult') || '{}');
+            if (data.firstName) document.getElementById('profile-name').textContent = data.firstName + ' ' + data.lastName;
+            if (data.email) document.getElementById('profile-email').textContent = data.email;
+            if (data.loginTime) document.getElementById('profile-time').textContent = data.loginTime;
+            
+            const photo = sessionStorage.getItem('citizenPhoto');
+            if(photo) {
+                document.getElementById('profile-photo').src = photo;
+                document.getElementById('profile-photo').style.display = 'block';
+                document.getElementById('profile-no-photo').style.display = 'none';
+            }
+        } catch(e) { console.error(e); }
+
+        // ─── TAB LOGIC ───
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+
+            // Force map size recalculation so it doesn't break when un-hidden
+            if (tabId === 'report' && map) {
+                setTimeout(() => { map.invalidateSize(); }, 200);
+            }
+        }
+
+        // ─── MAP LOGIC (WITH HTML5 GEOLOCATION) ───
+        let map = L.map('map').setView([21.1458, 79.0882], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+
+        let marker = L.marker([21.1458, 79.0882]).addTo(map).bindPopup('Locating position...').openPopup();
+
+        // Get real location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+                    map.setView([lat, lon], 16);
+                    marker.setLatLng([lat, lon]).bindPopup('<b>Your Current Location</b>').openPopup();
+                },
+                (err) => { console.warn("Location denied."); marker.bindPopup('<b>Nagpur (Default)</b>').openPopup(); },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        }
+
+        setTimeout(() => { map.invalidateSize(); }, 500);
+
+        // Simulate AI Upload Logic
+        function simulateAIUpload() {
+            const uploadZone = document.getElementById('photoUpload');
+            const aiBanner = document.getElementById('aiBanner');
+            uploadZone.innerHTML = '<div class="upload-zone-text">Uploading and analyzing with Gemini Vision...</div>';
+
+            setTimeout(() => {
+                const center = map.getCenter();
+                uploadZone.innerHTML = `<div class="upload-zone-text" style="color:var(--green)">✓ Geotagged Photo Uploaded</div><div class="upload-zone-sub">Extracted coords: ${center.lat.toFixed(4)}° N, ${center.lng.toFixed(4)}° E</div>`;
+                aiBanner.classList.add('active');
+                document.getElementById('categorySelect').value = 'pothole';
+                document.getElementById('severitySelect').value = 'critical';
+                marker.setLatLng(center).bindPopup('<strong style="color:red;">Detected:</strong> Critical Pothole').openPopup();
+            }, 1500);
+        }
+
+        // ─── MODAL & ACCESSIBILITY LOGIC ───
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        window.onclick = function (e) { if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active'); }
+
+        let currentFontSize = 1;
+        function toggleAccess(className, btn) {
+            document.body.classList.toggle(className);
+            if (btn) btn.classList.toggle('active');
+        }
+
+        function changeFontSize(mult) {
+            currentFontSize *= mult;
+            if (currentFontSize < 0.7) currentFontSize = 0.7;
+            if (currentFontSize > 1.5) currentFontSize = 1.5;
+            document.documentElement.style.fontSize = (currentFontSize * 100) + '%';
+        }
+
+        function resetAccessibility() {
+            document.body.className = '';
+            currentFontSize = 1; document.documentElement.style.fontSize = '100%';
+            document.querySelectorAll('.access-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        // ─── DIRECT FEEDBACK API (FormSubmit.co) ───
+        document.getElementById('directFeedbackForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitFeedbackBtn');
+            const feedbackMsg = document.getElementById('feedbackText').value;
+            const originalText = btn.innerText;
+
+            btn.innerText = "Sending securely...";
+            btn.disabled = true;
+
+            // Use AJAX to send email silently to your address
+            fetch("https://formsubmit.co/ajax/divyaramteke507@gmail.com", {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    _subject: "RoadWatch Portal Feedback",
+                    feedback: feedbackMsg
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    btn.innerText = "Feedback Sent ✓";
+                    btn.style.background = "var(--green)";
+                    setTimeout(() => {
+                        closeModal('feedbackModal');
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                        btn.style.background = "var(--navy)";
+                        document.getElementById('directFeedbackForm').reset();
+                    }, 2000);
+                })
+                .catch(error => {
+                    console.error(error);
+                    btn.innerText = "Error. Try again.";
+                    btn.style.background = "#ff0000";
+                    setTimeout(() => { btn.innerText = originalText; btn.disabled = false; btn.style.background = "var(--navy)"; }, 2500);
+                });
+        });
+    </script>
+</body>
+
+</html>
