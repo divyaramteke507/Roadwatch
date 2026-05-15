@@ -141,16 +141,21 @@
   @keyframes fadeRight { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
 
   .auth-card {
-    background: rgba(255,255,255,0.22);
-    backdrop-filter: blur(25px) saturate(160%);
-    -webkit-backdrop-filter: blur(25px) saturate(160%);
-    border: 1px solid rgba(255,255,255,0.6);
-    border-radius: 24px;
-    padding: 50px 60px;
-    width: 100%;
-    box-shadow: 0 24px 70px rgba(0,0,80,0.15), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 0 20px rgba(255,215,0,0.1);
-    position: relative;
-    overflow: hidden;
+    background: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 20px; padding: 40px; width: 420px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.08), inset 0 2px 10px rgba(255,255,255,0.5);
+    position: relative; z-index: 10;
+  }
+
+  /* ─── AUTH TABS ─── */
+  .auth-tabs {
+    display: flex; background: rgba(255,255,255,0.5); border-radius: 12px; padding: 4px; margin-bottom: 25px; border: 1px solid rgba(0,0,128,0.1);
+  }
+  .auth-tab {
+    flex: 1; text-align: center; padding: 10px; font-family: 'Cinzel', serif; font-size: 14px; font-weight: 700; cursor: pointer; border-radius: 8px; color: var(--navy); transition: all 0.3s;
+  }
+  .auth-tab.active {
+    background: var(--navy); color: var(--gold-light); box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
 
   .auth-card::before {
@@ -430,21 +435,26 @@
           <div class="hindi-subtitle">सुरक्षित नागरिक प्रमाणीकरण प्रणाली</div>
         </div>
 
+        <div class="auth-tabs">
+          <div class="auth-tab active" onclick="setAuthMode('login')" id="tabLogin">LOGIN</div>
+          <div class="auth-tab" onclick="setAuthMode('register')" id="tabRegister">REGISTER</div>
+        </div>
+
         <form id="secureLoginForm" onsubmit="event.preventDefault();">
-          <div class="form-row">
+          <div class="form-row" id="nameRow" style="display: none;">
             <div class="form-group">
               <label class="form-label">FIRST NAME</label>
-              <input type="text" id="firstName" class="form-control" placeholder="As per official ID" required>
+              <input type="text" id="firstName" class="form-control" placeholder="As per official ID">
             </div>
             <div class="form-group">
               <label class="form-label">LAST NAME</label>
-              <input type="text" id="lastName" class="form-control" placeholder="As per official ID" required>
+              <input type="text" id="lastName" class="form-control" placeholder="As per official ID">
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">REGISTERED PHONE NUMBER</label>
-            <input type="tel" id="phone" class="form-control" placeholder="+91 XXXXX XXXXX" maxlength="10" required>
+            <label class="form-label">REGISTERED EMAIL ADDRESS</label>
+            <input type="email" id="email" class="form-control" placeholder="name@example.com" required>
             <button type="button" class="btn-action" id="btnSendOtp" onclick="triggerOtp()">SEND SECURE OTP</button>
             <div class="status-msg" id="phoneStatus">
               <div class="loader" id="otpLoader"></div>
@@ -620,10 +630,35 @@
   for(let i=0;i<15;i++){let p=document.createElement('div');p.className='particle';p.style.left=Math.random()*100+'vw';p.style.animationDuration=(Math.random()*10+10)+'s';p.style.animationDelay=(Math.random()*5)+'s';particleContainer.appendChild(p);}
 
   // State
+  let authMode = 'login';
   let generatedCaptcha = '', isOtpVerified = false, isCaptchaVerified = false, resendTimer = null;
   const fName = document.getElementById('firstName'), lName = document.getElementById('lastName');
-  const phone = document.getElementById('phone'), captchaInp = document.getElementById('captchaInput');
+  const emailInp = document.getElementById('email'), captchaInp = document.getElementById('captchaInput');
   const submitBtn = document.getElementById('finalSubmitBtn'), otpBoxes = document.querySelectorAll('.otp-box');
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    document.getElementById('tabLogin').classList.toggle('active', mode === 'login');
+    document.getElementById('tabRegister').classList.toggle('active', mode === 'register');
+    document.getElementById('nameRow').style.display = mode === 'register' ? 'flex' : 'none';
+    
+    // Reset fields
+    emailInp.value = '';
+    emailInp.disabled = false;
+    fName.value = '';
+    lName.value = '';
+    const btn = document.getElementById('btnSendOtp');
+    btn.disabled = false;
+    btn.innerText = 'SEND SECURE OTP';
+    if(resendTimer) clearInterval(resendTimer);
+    document.getElementById('otpSection').style.display = 'none';
+    document.getElementById('otpStatusText').innerText = '';
+    document.getElementById('otpStatusText').className = 'status-msg';
+    otpBoxes.forEach(b => { b.value = ''; b.disabled = false; b.style.borderColor='rgba(0,0,128,0.3)'; b.style.boxShadow='none'; });
+    clerkSignIn = null;
+    isOtpVerified = false;
+    validateForm();
+  }
 
   // Captcha
   function initCaptcha() {
@@ -641,16 +676,29 @@
   }
   initCaptcha();
 
-  // ─── OTP Send (Clerk Phone Auth) ───
+  // ─── OTP Send (Clerk Email Auth) ───
   async function triggerOtp() {
-    const phoneVal = phone.value.replace(/\D/g,'');
+    const emailVal = emailInp.value.trim();
+    const fNameVal = fName.value.trim();
+    const lNameVal = lName.value.trim();
     const statusText = document.getElementById('otpStatusText');
     const loader = document.getElementById('otpLoader');
     const btn = document.getElementById('btnSendOtp');
-    if(phoneVal.length<10){statusText.className='status-msg status-error';statusText.innerText='Invalid Phone Number. Enter 10 digits.';return;}
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(!emailRegex.test(emailVal)){
+      statusText.className='status-msg status-error';
+      statusText.innerText='Invalid Email Address.';
+      return;
+    }
+
+    if (authMode === 'register' && (!fNameVal || !lNameVal)) {
+      statusText.className='status-msg status-error';
+      statusText.innerText='Please enter First and Last Name.';
+      return;
+    }
 
     btn.disabled=true;statusText.innerText='';loader.style.display='block';
-    const fullPhone = '+91' + phoneVal;
 
     // Fallback: if initClerk didn't fire but window.Clerk is available, try init again
     if (!clerkReady && window.Clerk) {
@@ -664,7 +712,6 @@
          statusText.innerText='Clerk SDK script failed to load. Are you offline or is it blocked by an adblocker?';
       } else {
          statusText.innerText='Auth service failed to initialize. See error above or check console.';
-         // Retry loading manually and show error
          try {
              await window.Clerk.load();
              clerkReady = true;
@@ -679,48 +726,56 @@
     }
 
     try {
-      // Try sign-in flow first (existing user)
-      clerkSignIn = await window.Clerk.client.signIn.create({ identifier: fullPhone });
-      const phoneFactor = clerkSignIn.supportedFirstFactors.find(f => f.strategy === 'phone_code');
-      if (phoneFactor) {
-        clerkSignIn = await clerkSignIn.prepareFirstFactor({ strategy: 'phone_code', phoneNumberId: phoneFactor.phoneNumberId });
-      }
-      clerkSignIn._isSignUp = false;
-      loader.style.display='none';
-      statusText.className='status-msg status-success';
-      statusText.innerText='✓ OTP Sent to ' + fullPhone;
-      document.getElementById('otpSection').style.display='flex';
-      otpBoxes[0].focus();
-      startResendTimer(btn);
-    } catch(err) {
-      console.log('Sign-in attempt result:', err);
-      // If user not found, try sign-up flow
-      if (err.errors && err.errors[0] && (err.errors[0].code === 'form_identifier_not_found' || err.errors[0].code === 'identifier_not_found')) {
-        try {
-          const signUp = await window.Clerk.client.signUp.create({ phoneNumber: fullPhone });
-          await signUp.preparePhoneNumberVerification({ strategy: 'phone_code' });
-          clerkSignIn = { _isSignUp: true, signUp: signUp };
-          loader.style.display='none';
-          statusText.className='status-msg status-success';
-          statusText.innerText='✓ OTP Sent to ' + fullPhone;
-          document.getElementById('otpSection').style.display='flex';
-          otpBoxes[0].focus();
-          startResendTimer(btn);
-          return;
-        } catch(signUpErr) {
-          loader.style.display='none';
-          console.error('Clerk SignUp error:', signUpErr);
-          statusText.className='status-msg status-error';
-          statusText.innerText='Failed to send OTP: ' + (signUpErr.errors?.[0]?.longMessage || signUpErr.message || 'Unknown error');
-          btn.disabled=false;
-          return;
+      if (authMode === 'login') {
+        // Try sign-in flow
+        clerkSignIn = await window.Clerk.client.signIn.create({ identifier: emailVal });
+        const emailFactor = clerkSignIn.supportedFirstFactors.find(f => f.strategy === 'email_code');
+        if (emailFactor) {
+          clerkSignIn = await clerkSignIn.prepareFirstFactor({ strategy: 'email_code', emailAddressId: emailFactor.emailAddressId });
         }
+        clerkSignIn._isSignUp = false;
+        showOtpSuccess(emailVal, btn);
+      } else {
+        // Try sign-up flow
+        const signUp = await window.Clerk.client.signUp.create({ emailAddress: emailVal, firstName: fNameVal, lastName: lNameVal });
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+        clerkSignIn = { _isSignUp: true, signUp: signUp };
+        showOtpSuccess(emailVal, btn);
       }
+    } catch(err) {
+      console.log('Auth attempt result:', err);
       loader.style.display='none';
+      btn.disabled=false;
+
+      if (authMode === 'login' && err.errors && err.errors[0] && (err.errors[0].code === 'form_identifier_not_found' || err.errors[0].code === 'identifier_not_found')) {
+        setAuthMode('register');
+        emailInp.value = emailVal;
+        document.getElementById('otpStatusText').className='status-msg status-error';
+        document.getElementById('otpStatusText').innerText='Email not found. Please register first.';
+        return;
+      }
+      
+      if (authMode === 'register' && err.errors && err.errors[0] && err.errors[0].code === 'form_identifier_exists') {
+        setAuthMode('login');
+        emailInp.value = emailVal;
+        document.getElementById('otpStatusText').className='status-msg status-error';
+        document.getElementById('otpStatusText').innerText='Email already exists. Please login.';
+        return;
+      }
+
       statusText.className='status-msg status-error';
       statusText.innerText='Failed to send OTP: ' + (err.errors?.[0]?.longMessage || err.message || 'Unknown error');
-      btn.disabled=false;
     }
+  }
+
+  function showOtpSuccess(emailVal, btn) {
+    document.getElementById('otpLoader').style.display='none';
+    const statusText = document.getElementById('otpStatusText');
+    statusText.className='status-msg status-success';
+    statusText.innerText='✓ OTP Sent to ' + emailVal;
+    document.getElementById('otpSection').style.display='flex';
+    otpBoxes[0].focus();
+    startResendTimer(btn);
   }
 
   function startResendTimer(btn) {
@@ -769,12 +824,12 @@
       try {
         let result;
         if (clerkSignIn._isSignUp) {
-          result = await clerkSignIn.signUp.attemptPhoneNumberVerification({ code: otpVal });
+          result = await clerkSignIn.signUp.attemptEmailAddressVerification({ code: otpVal });
           if (result.status === 'complete') {
             await window.Clerk.setActive({ session: result.createdSessionId });
           }
         } else {
-          result = await clerkSignIn.attemptFirstFactor({ strategy: 'phone_code', code: otpVal });
+          result = await clerkSignIn.attemptFirstFactor({ strategy: 'email_code', code: otpVal });
           if (result.status === 'complete') {
             await window.Clerk.setActive({ session: result.createdSessionId });
           }
@@ -810,21 +865,27 @@
 
   // Validation
   function validateForm() {
-    const ok=fName.value.trim().length>0&&lName.value.trim().length>0&&phone.value.replace(/\D/g,'').length>=10&&isOtpVerified&&isCaptchaVerified;
-    ok?submitBtn.classList.add('active'):submitBtn.classList.remove('active');
+    let ok = false;
+    const emailValid = emailInp.value.trim().length > 0;
+    if (authMode === 'login') {
+      ok = emailValid && isOtpVerified && isCaptchaVerified;
+    } else {
+      ok = fName.value.trim().length>0 && lName.value.trim().length>0 && emailValid && isOtpVerified && isCaptchaVerified;
+    }
+    ok ? submitBtn.classList.add('active') : submitBtn.classList.remove('active');
   }
-  [fName,lName,phone].forEach(inp=>inp.addEventListener('input',validateForm));
+  [fName,lName,emailInp].forEach(inp => { if(inp) inp.addEventListener('input', validateForm); });
 
   // Submit
   document.querySelector('form').addEventListener('submit', async function(e) {
     e.preventDefault();
     if(!submitBtn.classList.contains('active'))return;
     submitBtn.innerHTML='<div class="loader" style="display:inline-block;width:20px;height:20px;border:2.5px solid var(--gold-light);border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Processing...';
-    const phoneVal=phone.value.replace(/\D/g,'');
+    const emailVal = emailInp.value.trim();
     try {
-      await fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',firstName:fName.value.trim(),lastName:lName.value.trim(),phoneNumber:phoneVal})});
+      await fetch(API_BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'register',firstName:fName.value.trim(),lastName:lName.value.trim(),email:emailVal})});
     } catch(err){console.log('Backend not available, continuing offline');}
-    sessionStorage.setItem('citizenData',JSON.stringify({firstName:fName.value.trim(),lastName:lName.value.trim(),phone:phoneVal}));
+    sessionStorage.setItem('citizenData',JSON.stringify({firstName:fName.value.trim(),lastName:lName.value.trim(),email:emailVal}));
     sessionStorage.setItem('loginVerified','true');
     window.location.href='face.html';
   });
