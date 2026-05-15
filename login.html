@@ -580,6 +580,7 @@
   crossorigin="anonymous"
   data-clerk-publishable-key="pk_test_bWF4aW11bS1vcG9zc3VtLTQzLmNsZXJrLmFjY291bnRzLmRldiQ"
   src="https://cdn.clerk.com/public/clerk-js/5/clerk.browser.js"
+  onload="initClerk()"
 ></script>
 
 <script>
@@ -598,13 +599,6 @@
       console.error('Clerk init failed:', e);
       clerkReady = false;
     }
-  }
-
-  if (window.Clerk) {
-    initClerk();
-  } else {
-    const clerkScript = document.querySelector('script[data-clerk-publishable-key]');
-    if (clerkScript) clerkScript.addEventListener('load', initClerk);
   }
 
   // Clock
