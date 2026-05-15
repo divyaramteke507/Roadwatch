@@ -851,7 +851,7 @@
 
                     <div class="form-group">
                         <label class="form-label">Description & Landmarks</label>
-                        <textarea class="form-control" rows="2"
+                        <textarea class="form-control" id="issueDescription" rows="2"
                             placeholder="Provide any additional details or nearby landmarks..."></textarea>
                     </div>
 
@@ -966,8 +966,8 @@
                     Upload from Device
                 </button>
             </div>
-            <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="simulateAIUpload()">
-            <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="simulateAIUpload()">
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="handleFileUpload(this)">
+            <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileUpload(this)">
         </div>
     </div>
 
@@ -1156,20 +1156,73 @@
 
         setTimeout(() => { map.invalidateSize(); }, 500);
 
-        // Simulate AI Upload Logic
-        function simulateAIUpload() {
+        // ─── GEMINI VISION AI UPLOAD & ANALYSIS ───
+        async function handleFileUpload(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            
             const uploadZone = document.getElementById('photoUpload');
             const aiBanner = document.getElementById('aiBanner');
-            uploadZone.innerHTML = '<div class="upload-zone-text">Uploading and analyzing with Gemini Vision...</div>';
+            uploadZone.innerHTML = '<div style="width:24px;height:24px;border:3px solid var(--navy);border-bottom-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px;"></div><div class="upload-zone-text">Analyzing image with Gemini Vision AI...</div>';
 
-            setTimeout(() => {
-                const center = map.getCenter();
-                uploadZone.innerHTML = `<div class="upload-zone-text" style="color:var(--green)">✓ Geotagged Photo Uploaded</div><div class="upload-zone-sub">Extracted coords: ${center.lat.toFixed(4)}° N, ${center.lng.toFixed(4)}° E</div>`;
-                aiBanner.classList.add('active');
-                document.getElementById('categorySelect').value = 'pothole';
-                document.getElementById('severitySelect').value = 'critical';
-                marker.setLatLng(center).bindPopup('<strong style="color:red;">Detected:</strong> Critical Pothole').openPopup();
-            }, 1500);
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                try {
+                    const API_KEY = "AIzaSyApmzl8Og6_awh5-JM3I59IjH-4gjs8cSI";
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    { text: "Analyze this image of a road or infrastructure issue. Identify the issue and its severity. Return ONLY a raw JSON object (no markdown formatting, no backticks) with exactly three keys: 'category' (choose exactly one from: pothole, crack, waterlogging, manhole, divider, light, traffic_signal, zebra_crossing, water_leakage, garbage_dump, other), 'severity' (choose exactly one from: low, medium, critical), and 'description' (a short 1-2 sentence description of the visible damage and nearby context)." },
+                                    { inlineData: { mimeType: file.type, data: base64Data } }
+                                ]
+                            }]
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    let aiResponse = data.candidates[0].content.parts[0].text;
+                    
+                    aiResponse = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const result = JSON.parse(aiResponse);
+                    
+                    const center = map.getCenter();
+                    uploadZone.innerHTML = `<div class="upload-zone-text" style="color:var(--green)">✓ Photo Analyzed Automatically</div><div class="upload-zone-sub">Extracted coords: ${center.lat.toFixed(4)}° N, ${center.lng.toFixed(4)}° E</div>`;
+                    
+                    aiBanner.classList.add('active');
+                    
+                    document.getElementById('categorySelect').value = result.category || 'other';
+                    document.getElementById('severitySelect').value = result.severity || 'medium';
+                    if (result.description) {
+                        document.getElementById('issueDescription').value = result.description;
+                    }
+                    
+                    document.getElementById('aiIssue').innerText = (result.category || 'other').replace(/_/g, ' ').toUpperCase();
+                    document.getElementById('aiSeverity').innerText = (result.severity || 'medium').toUpperCase();
+                    
+                    if (result.severity === 'critical') {
+                        document.getElementById('aiSeverity').style.color = '#B05000';
+                    } else if (result.severity === 'medium') {
+                        document.getElementById('aiSeverity').style.color = 'var(--saffron-deep)';
+                    } else {
+                        document.getElementById('aiSeverity').style.color = 'var(--green)';
+                    }
+
+                    marker.setLatLng(center).bindPopup(`<strong style="color:var(--navy);">${(result.category||'Issue').toUpperCase()}</strong> - ${(result.severity||'unknown').toUpperCase()}`).openPopup();
+                    
+                } catch (err) {
+                    console.error("Gemini API Error:", err);
+                    uploadZone.innerHTML = `<div class="upload-zone-text" style="color:#8B1A00">⚠ AI Analysis Failed. Please fill manually.</div>`;
+                    document.getElementById('aiIssue').innerText = "MANUAL ENTRY REQUIRED";
+                    document.getElementById('aiSeverity').innerText = "N/A";
+                    document.getElementById('aiSeverity').style.color = "inherit";
+                    aiBanner.classList.add('active');
+                }
+            };
+            reader.readAsDataURL(file);
         }
 
         // ─── MODAL & ACCESSIBILITY LOGIC ───
