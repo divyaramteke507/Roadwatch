@@ -6,3 +6,6 @@ server/citizens.db
 server/.env
 .vercel/
 public/
+serviceAccountKey.json
+server/serviceAccountKey.json
+*.json.enc
