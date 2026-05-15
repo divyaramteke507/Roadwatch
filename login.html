@@ -587,9 +587,12 @@
       await window.Clerk.load();
       clerkReady = true;
       console.log('Clerk Auth ready');
+      document.getElementById('otpStatusText').innerText = '';
     } catch(e) {
       console.error('Clerk init failed:', e);
       clerkReady = false;
+      document.getElementById('otpStatusText').className = 'status-msg status-error';
+      document.getElementById('otpStatusText').innerText = 'Clerk Error: ' + (e.message || JSON.stringify(e));
     }
   }
 </script>
@@ -657,7 +660,20 @@
     if (!clerkReady || !window.Clerk) {
       loader.style.display='none';
       statusText.className='status-msg status-error';
-      statusText.innerText='Auth service not ready. Please refresh and try again.';
+      if (!window.Clerk) {
+         statusText.innerText='Clerk SDK script failed to load. Are you offline or is it blocked by an adblocker?';
+      } else {
+         statusText.innerText='Auth service failed to initialize. See error above or check console.';
+         // Retry loading manually and show error
+         try {
+             await window.Clerk.load();
+             clerkReady = true;
+             statusText.innerText='Clerk loaded on retry! Click Send OTP again.';
+             statusText.className='status-msg status-success';
+         } catch(e) {
+             statusText.innerText='Clerk Init Error: ' + (e.message || JSON.stringify(e));
+         }
+      }
       btn.disabled=false;
       return;
     }
