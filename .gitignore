@@ -1,11 +1,48 @@
+# ─── Dependencies ───
 node_modules/
-.env
-*.db
 server/node_modules/
-server/citizens.db
+
+# ─── Environment / Secret Keys ───
+# NEVER commit real .env files. Use .env.example as the template.
+.env
+*.env
+.env.*
+!.env.example
 server/.env
-.vercel/
-public/
+server/*.env
+server/.env.*
+!server/.env.example
+
+# ─── Databases ───
+*.db
+*.sqlite
+*.sqlite3
+server/citizens.db
+
+# ─── Firebase / Google Service Accounts ───
 serviceAccountKey.json
 server/serviceAccountKey.json
+*serviceAccount*.json
+google-credentials.json
+
+# ─── Encrypted / sensitive files ───
 *.json.enc
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ─── Build & deploy artifacts ───
+.vercel/
+dist/
+build/
+.next/
+
+# ─── Generated / served public folder ───
+public/
+
+# ─── OS / editor clutter ───
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+*.log
