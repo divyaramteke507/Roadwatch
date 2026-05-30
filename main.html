@@ -1162,10 +1162,10 @@
         }
 
         // ─── MAP LOGIC (WITH HTML5 GEOLOCATION) ───
-        let map = L.map('map').setView([21.1458, 79.0882], 13);
+        let map = L.map('map').setView([28.6139, 77.2090], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
 
-        let marker = L.marker([21.1458, 79.0882]).addTo(map).bindPopup('Locating position...').openPopup();
+        let marker = L.marker([28.6139, 77.2090]).addTo(map).bindPopup('Locating position...').openPopup();
 
         // Get real location
         if (navigator.geolocation) {
@@ -1175,7 +1175,7 @@
                     map.setView([lat, lon], 16);
                     marker.setLatLng([lat, lon]).bindPopup('<b>Your Current Location</b>').openPopup();
                 },
-                (err) => { console.warn("Location denied."); marker.bindPopup('<b>Nagpur (Default)</b>').openPopup(); },
+                (err) => { console.warn("Location denied."); marker.bindPopup('<b>New Delhi (Default)</b>').openPopup(); },
                 { enableHighAccuracy: true, timeout: 5000 }
             );
         }
