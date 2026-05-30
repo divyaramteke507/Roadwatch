@@ -1,13 +1,14 @@
 // Vercel Serverless Function: /api/gemini/analyze
 // The GEMINI_API_KEY is set as a Vercel Environment Variable — never sent to the browser.
 
-// Try v1 first (for new AQ. keys), then v1beta as fallback
+// List of models to try in order of preference.
+// gemini-2.5-flash and gemini-3.5-flash work successfully with the new key.
 const ATTEMPTS = [
-  { version: 'v1',     model: 'gemini-2.0-flash' },
-  { version: 'v1',     model: 'gemini-1.5-flash' },
+  { version: 'v1beta', model: 'gemini-2.5-flash' },
+  { version: 'v1beta', model: 'gemini-3.5-flash' },
+  { version: 'v1beta', model: 'gemini-flash-latest' },
   { version: 'v1beta', model: 'gemini-2.0-flash' },
   { version: 'v1beta', model: 'gemini-1.5-flash' },
-  { version: 'v1beta', model: 'gemini-1.5-flash-latest' },
 ];
 
 async function callGemini({ version, model }, key, base64Image, mimeType) {
