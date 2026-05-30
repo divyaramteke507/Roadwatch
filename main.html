@@ -1204,7 +1204,7 @@
                     });
                     
                     const json = await response.json();
-                    if (!response.ok || !json.success) throw new Error(json.error || 'Server proxy error');
+                    if (!response.ok || !json.success) throw new Error(json.details || json.error || 'Server proxy error');
 
                     const result = json.result;
                     
