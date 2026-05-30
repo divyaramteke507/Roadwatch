@@ -1,14 +1,17 @@
 // Vercel Serverless Function: /api/gemini/analyze
 // The GEMINI_API_KEY is set as a Vercel Environment Variable — never sent to the browser.
 
-const MODELS = [
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-pro',
+// Try v1 first (for new AQ. keys), then v1beta as fallback
+const ATTEMPTS = [
+  { version: 'v1',     model: 'gemini-2.0-flash' },
+  { version: 'v1',     model: 'gemini-1.5-flash' },
+  { version: 'v1beta', model: 'gemini-2.0-flash' },
+  { version: 'v1beta', model: 'gemini-1.5-flash' },
+  { version: 'v1beta', model: 'gemini-1.5-flash-latest' },
 ];
 
-async function callGemini(model, key, base64Image, mimeType) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+async function callGemini({ version, model }, key, base64Image, mimeType) {
+  const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${key}`;
   return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -54,16 +57,16 @@ module.exports = async (req, res) => {
 
   let lastError = null;
 
-  for (const model of MODELS) {
+  for (const attempt of ATTEMPTS) {
     try {
-      console.log(`[Gemini] Trying model: ${model}`);
-      const geminiRes = await callGemini(model, GEMINI_KEY, base64Image, mimeType);
+      console.log(`[Gemini] Trying ${attempt.version}/${attempt.model}`);
+      const geminiRes = await callGemini(attempt, GEMINI_KEY, base64Image, mimeType);
 
       if (!geminiRes.ok) {
         const errText = await geminiRes.text();
-        console.error(`[Gemini] Model ${model} failed (${geminiRes.status}):`, errText);
-        lastError = `${model} → HTTP ${geminiRes.status}: ${errText}`;
-        continue; // try next model
+        console.error(`[Gemini] ${attempt.version}/${attempt.model} failed (${geminiRes.status}):`, errText);
+        lastError = `${attempt.version}/${attempt.model} → HTTP ${geminiRes.status}: ${errText}`;
+        continue; // try next
       }
 
       const data = await geminiRes.json();
@@ -73,19 +76,18 @@ module.exports = async (req, res) => {
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       try {
         const parsed = JSON.parse(cleaned);
-        console.log(`[Gemini] Success with model: ${model}`);
-        return res.json({ success: true, result: parsed, model });
+        console.log(`[Gemini] Success: ${attempt.version}/${attempt.model}`);
+        return res.json({ success: true, result: parsed, model: `${attempt.version}/${attempt.model}` });
       } catch {
-        return res.json({ success: true, result: { raw: cleaned }, model });
+        return res.json({ success: true, result: { raw: cleaned }, model: `${attempt.version}/${attempt.model}` });
       }
 
     } catch (err) {
-      console.error(`[Gemini] Fetch error with model ${model}:`, err.message);
+      console.error(`[Gemini] Fetch error (${attempt.version}/${attempt.model}):`, err.message);
       lastError = err.message;
     }
   }
 
-  // All models failed — return the real error so the frontend can show it
   return res.status(500).json({
     error: lastError || 'All Gemini models failed',
     details: lastError
